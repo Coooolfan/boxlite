@@ -8,19 +8,55 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.CompletionException;
 import java.util.Optional;
 import java.util.UUID;
-import org.junit.jupiter.api.Assumptions;
+import java.util.stream.Stream;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class BoxliteSmokeTest {
+    private static final int LOG_TAIL_LINES = 120;
+    private static final Path SHARED_RUNTIME_HOME = Path.of(
+        System.getProperty("user.home"),
+        ".boxlite"
+    );
+
     @TempDir
     Path tempDir;
+
+    @BeforeAll
+    static void verifyVmPreflight() {
+        String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        String osArch = System.getProperty("os.arch", "");
+
+        if (!osName.contains("mac")) {
+            return;
+        }
+
+        if (!"aarch64".equals(osArch)) {
+            fail(
+                "Java VM smoke tests require macOS arm64. " +
+                "Detected os.arch=" + osArch
+            );
+        }
+
+        String hvSupport = runCommand("sysctl", "-n", "kern.hv_support").trim();
+        if (!"1".equals(hvSupport)) {
+            fail(
+                "Hypervisor.framework is unavailable (kern.hv_support=" + hvSupport + "). " +
+                "Enable virtualization support before running tests."
+            );
+        }
+    }
 
     @Test
     void versionIsAvailable() {
@@ -30,7 +66,8 @@ class BoxliteSmokeTest {
 
     @Test
     void runtimeCanCreateGetListAndRemoveBoxes() {
-        try (BoxliteRuntime runtime = newRuntimeForTest("case-create-get-remove")) {
+        try (TestRuntime fixture = newRuntimeForTest("case-create-get-remove")) {
+            BoxliteRuntime runtime = fixture.runtime();
             String name = "java-phase1-" + UUID.randomUUID();
 
             BoxHandle created = runtime.create(BoxOptions.defaults(), name).join();
@@ -59,7 +96,8 @@ class BoxliteSmokeTest {
 
     @Test
     void runtimeSupportsGetOrCreateMetricsAndShutdown() {
-        try (BoxliteRuntime runtime = newRuntimeForTest("case-get-or-create")) {
+        try (TestRuntime fixture = newRuntimeForTest("case-get-or-create")) {
+            BoxliteRuntime runtime = fixture.runtime();
             String name = "java-phase1-goc-" + UUID.randomUUID();
 
             GetOrCreateResult first = runtime.getOrCreate(BoxOptions.defaults(), name).join();
@@ -79,9 +117,8 @@ class BoxliteSmokeTest {
     }
 
     @Test
-    void boxCanStartStopAndBeReattached() {
-        requireVmIntegration();
-        try (BoxliteRuntime runtime = newRuntimeForTest("case-start-stop")) {
+    void boxCanStartStopAndBeReattached() throws Exception {
+        runVmTest("case-start-stop", runtime -> {
             BoxOptions options = BoxOptions.builder()
                 .autoRemove(false)
                 .build();
@@ -98,13 +135,12 @@ class BoxliteSmokeTest {
             reattached.get().close();
             runtime.remove(box.id(), true).join();
             box.close();
-        }
+        });
     }
 
     @Test
     void copyInOutRoundTripWorks() throws Exception {
-        requireVmIntegration();
-        try (BoxliteRuntime runtime = newRuntimeForTest("case-copy")) {
+        runVmTest("case-copy", runtime -> {
             BoxOptions options = BoxOptions.builder()
                 .autoRemove(false)
                 .build();
@@ -133,13 +169,12 @@ class BoxliteSmokeTest {
 
             runtime.remove(box.id(), true).join();
             box.close();
-        }
+        });
     }
 
     @Test
-    void execSupportsEnvWorkingDirAndWait() {
-        requireVmIntegration();
-        try (BoxliteRuntime runtime = newRuntimeForTest("case-exec-env")) {
+    void execSupportsEnvWorkingDirAndWait() throws Exception {
+        runVmTest("case-exec-env", runtime -> {
             BoxOptions options = BoxOptions.builder()
                 .autoRemove(false)
                 .build();
@@ -162,13 +197,12 @@ class BoxliteSmokeTest {
             exec.close();
             runtime.remove(box.id(), true).join();
             box.close();
-        }
+        });
     }
 
     @Test
-    void execStdinRoundTripWorks() {
-        requireVmIntegration();
-        try (BoxliteRuntime runtime = newRuntimeForTest("case-exec-stdin")) {
+    void execStdinRoundTripWorks() throws Exception {
+        runVmTest("case-exec-stdin", runtime -> {
             BoxOptions options = BoxOptions.builder()
                 .autoRemove(false)
                 .build();
@@ -186,13 +220,12 @@ class BoxliteSmokeTest {
             exec.close();
             runtime.remove(box.id(), true).join();
             box.close();
-        }
+        });
     }
 
     @Test
-    void execCanBeKilled() {
-        requireVmIntegration();
-        try (BoxliteRuntime runtime = newRuntimeForTest("case-exec-kill")) {
+    void execCanBeKilled() throws Exception {
+        runVmTest("case-exec-kill", runtime -> {
             BoxOptions options = BoxOptions.builder()
                 .autoRemove(false)
                 .build();
@@ -211,12 +244,13 @@ class BoxliteSmokeTest {
             exec.close();
             runtime.remove(box.id(), true).join();
             box.close();
-        }
+        });
     }
 
     @Test
     void runtimeRemoveMissingBoxThrowsNotFound() {
-        try (BoxliteRuntime runtime = newRuntimeForTest("case-remove-missing")) {
+        try (TestRuntime fixture = newRuntimeForTest("case-remove-missing")) {
+            BoxliteRuntime runtime = fixture.runtime();
             RuntimeException cause = joinFailure(
                 runtime.remove("missing-" + UUID.randomUUID(), false)
             );
@@ -226,7 +260,8 @@ class BoxliteSmokeTest {
 
     @Test
     void closedHandleOperationsThrowInvalidState() {
-        try (BoxliteRuntime runtime = newRuntimeForTest("case-handle-close")) {
+        try (TestRuntime fixture = newRuntimeForTest("case-handle-close")) {
+            BoxliteRuntime runtime = fixture.runtime();
             BoxHandle box = runtime.create(BoxOptions.defaults(), "java-phase1-close-" + UUID.randomUUID()).join();
             box.close();
 
@@ -235,20 +270,31 @@ class BoxliteSmokeTest {
         }
     }
 
-    private BoxliteRuntime newRuntimeForTest(String suffix) {
-        Path runtimeHome;
+    private void runVmTest(String suffix, VmScenario scenario) throws Exception {
+        try (TestRuntime fixture = newRuntimeForTest(suffix)) {
+            try {
+                scenario.run(fixture.runtime());
+            } catch (Exception | AssertionError failure) {
+                dumpVmDiagnostics(suffix, fixture.homeDir(), failure);
+                throw failure;
+            }
+        }
+    }
+
+    private TestRuntime newRuntimeForTest(String suffix) {
         try {
-            String token = UUID.randomUUID().toString().substring(0, 8);
-            runtimeHome = Path.of("/tmp", "blj-" + token);
-            Files.createDirectories(runtimeHome);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to create temporary runtime home", e);
+            Files.createDirectories(SHARED_RUNTIME_HOME);
+        } catch (IOException e) {
+            throw new RuntimeException(
+                "Failed to prepare shared runtime home " + SHARED_RUNTIME_HOME,
+                e
+            );
         }
 
         Options options = Options.builder()
-            .homeDir(runtimeHome)
+            .homeDir(SHARED_RUNTIME_HOME)
             .build();
-        return Boxlite.newRuntime(options);
+        return new TestRuntime(Boxlite.newRuntime(options), SHARED_RUNTIME_HOME);
     }
 
     private static RuntimeException joinFailure(java.util.concurrent.CompletableFuture<?> future) {
@@ -265,12 +311,128 @@ class BoxliteSmokeTest {
         }
     }
 
-    private static void requireVmIntegration() {
-        boolean enabledByEnv = "1".equals(System.getenv("BOXLITE_JAVA_RUN_VM_TESTS"));
-        boolean enabledByProperty = Boolean.getBoolean("boxlite.java.runVmTests");
-        Assumptions.assumeTrue(
-            enabledByEnv || enabledByProperty,
-            "VM integration tests are disabled. Set BOXLITE_JAVA_RUN_VM_TESTS=1 to enable."
+    private static void dumpVmDiagnostics(String caseName, Path runtimeHome, Throwable failure) {
+        System.err.println();
+        System.err.println("=== BoxLite Java VM Diagnostics ===");
+        System.err.println("Case: " + caseName);
+        System.err.println("Runtime home: " + runtimeHome);
+        System.err.println(
+            "Failure: " + failure.getClass().getName() + ": " + failure.getMessage()
         );
+
+        Path logsDir = runtimeHome.resolve("logs");
+        if (!Files.isDirectory(logsDir)) {
+            System.err.println("Logs directory not found: " + logsDir);
+            System.err.println("===================================");
+            return;
+        }
+
+        printLatestLogTail(logsDir, "boxlite.log");
+        printLatestLogTail(logsDir, "boxlite-shim.log");
+        System.err.println("===================================");
+    }
+
+    private static void printLatestLogTail(Path logsDir, String prefix) {
+        Optional<Path> latest = findLatestLogFile(logsDir, prefix);
+        if (latest.isEmpty()) {
+            System.err.println("No log files found for prefix: " + prefix);
+            return;
+        }
+
+        Path logFile = latest.get();
+        System.err.println("-- tail -n " + LOG_TAIL_LINES + " " + logFile + " --");
+        try {
+            List<String> lines = Files.readAllLines(logFile, StandardCharsets.UTF_8);
+            int from = Math.max(0, lines.size() - LOG_TAIL_LINES);
+            for (int i = from; i < lines.size(); i++) {
+                System.err.println(lines.get(i));
+            }
+        } catch (IOException e) {
+            System.err.println("Failed to read log file " + logFile + ": " + e.getMessage());
+        }
+    }
+
+    private static Optional<Path> findLatestLogFile(Path logsDir, String prefix) {
+        try (Stream<Path> stream = Files.list(logsDir)) {
+            return stream
+                .filter(Files::isRegularFile)
+                .filter(path -> path.getFileName().toString().startsWith(prefix))
+                .max(Comparator.comparingLong(BoxliteSmokeTest::lastModifiedMillis));
+        } catch (IOException e) {
+            return Optional.empty();
+        }
+    }
+
+    private static long lastModifiedMillis(Path path) {
+        try {
+            return Files.getLastModifiedTime(path).toMillis();
+        } catch (IOException e) {
+            return Long.MIN_VALUE;
+        }
+    }
+
+    private static String runCommand(String... command) {
+        Process process;
+        try {
+            process = new ProcessBuilder(command)
+                .redirectErrorStream(true)
+                .start();
+        } catch (IOException e) {
+            fail("Failed to run preflight command: " + String.join(" ", command), e);
+            return "";
+        }
+
+        String output;
+        try {
+            output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            fail("Failed to read preflight command output: " + String.join(" ", command), e);
+            return "";
+        }
+
+        int exitCode;
+        try {
+            exitCode = process.waitFor();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            fail("Interrupted while waiting for preflight command", e);
+            return "";
+        }
+
+        if (exitCode != 0) {
+            fail(
+                "Preflight command failed (" + exitCode + "): " +
+                String.join(" ", command) + "\n" + output
+            );
+        }
+        return output;
+    }
+
+    @FunctionalInterface
+    private interface VmScenario {
+        void run(BoxliteRuntime runtime) throws Exception;
+    }
+
+    private static final class TestRuntime implements AutoCloseable {
+        private final BoxliteRuntime runtime;
+        private final Path homeDir;
+
+        private TestRuntime(BoxliteRuntime runtime, Path homeDir) {
+            this.runtime = runtime;
+            this.homeDir = homeDir;
+        }
+
+        private BoxliteRuntime runtime() {
+            return runtime;
+        }
+
+        private Path homeDir() {
+            return homeDir;
+        }
+
+        @Override
+        public void close() {
+            runtime.close();
+        }
     }
 }

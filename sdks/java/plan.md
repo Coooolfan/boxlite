@@ -247,7 +247,20 @@ Python SDK 已证明这套能力可完整封装：
 - 集成测试：真实 VM 场景（create/exec/copy/metrics）
 - E2E 示例测试：对外 README 示例可运行
 
-### 7.2 执行权限要求（新增）
+### 7.2 本地开发硬约束（新增）
+
+- 本地开发机上，`./sdks/java/gradlew -p sdks/java test` 必须默认包含 VM 集成测试并稳定通过。
+- 不再依赖环境变量开关来跳过 VM 用例。
+- `sdk-core` 测试策略：
+  - 单 JVM 串行执行（避免多 runtime/锁竞争导致抖动）
+  - 共享本地开发缓存目录（`~/.boxlite`）复用已拉取镜像，避免每个用例重复拉取触发限流
+  - 失败时输出 boxlite/boxlite-shim 日志 tail，便于直接定位
+  - 用例结束显式关闭 runtime/handle，避免锁残留影响后续运行
+- macOS 本地前置条件（fail-fast）：
+  - `os.arch=aarch64`
+  - `sysctl -n kern.hv_support` 返回 `1`
+
+### 7.3 执行权限要求（受限环境）
 
 - 本地推荐命令：`./sdks/java/gradlew -p sdks/java test :samples:smoke:run`
 - 在受限沙箱/CI 环境中，Gradle 可能因 `~/.gradle` 锁文件或系统信息探测被拒绝访问而失败。

@@ -25,10 +25,21 @@ GRADLE_USER_HOME=.gradle-local ./sdks/java/gradlew -p sdks/java build
 GRADLE_USER_HOME=.gradle-local ./sdks/java/gradlew -p sdks/java :samples:smoke:run
 ```
 
-Run VM integration tests (start/stop/copy) explicitly:
+Run full tests (unit + VM integration) locally:
 
 ```bash
-BOXLITE_JAVA_RUN_VM_TESTS=1 ./sdks/java/gradlew -p sdks/java :sdk-core:test
+./sdks/java/gradlew -p sdks/java test
+```
+
+`sdk-core` smoke tests now run VM scenarios by default. On macOS, local prerequisites are:
+- Apple Silicon (`os.arch=aarch64`)
+- Hypervisor.framework available (`sysctl -n kern.hv_support` returns `1`)
+- Local image cache available in `~/.boxlite/images` (tests reuse cached images to avoid registry rate limits)
+
+In restricted environments, keep using a writable Gradle cache path:
+
+```bash
+GRADLE_USER_HOME=.gradle-local ./sdks/java/gradlew -p sdks/java test
 ```
 
 ## Native Override
