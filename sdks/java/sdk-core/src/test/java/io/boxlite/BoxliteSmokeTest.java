@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.CompletionException;
@@ -113,20 +114,101 @@ class BoxliteSmokeTest {
             String payload = "phase1-copy-" + UUID.randomUUID();
             Files.writeString(hostSrc, payload);
 
-            String guestPath = "/root/java-copy-roundtrip.txt";
+            String guestPath = "/root/java-copy-roundtrip/copy-src.txt";
             box.copyIn(hostSrc, guestPath, CopyOptions.defaults()).join();
 
             Path hostOutDir = tempDir.resolve("copy-out");
             Files.createDirectories(hostOutDir);
-            CopyOptions copyOutOptions = CopyOptions.builder()
-                .includeParent(false)
-                .build();
-            box.copyOut(guestPath, hostOutDir, copyOutOptions).join();
+            box.copyOut(guestPath, hostOutDir, CopyOptions.defaults()).join();
 
-            Path copiedFile = hostOutDir.resolve("java-copy-roundtrip.txt");
-            assertTrue(Files.exists(copiedFile), "Expected copied file to exist in host output directory");
+            Path copiedFile;
+            try (var walk = Files.walk(hostOutDir)) {
+                copiedFile = walk
+                    .filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().equals("copy-src.txt"))
+                    .findFirst()
+                    .orElseThrow();
+            }
             assertEquals(payload, Files.readString(copiedFile));
 
+            runtime.remove(box.id(), true).join();
+            box.close();
+        }
+    }
+
+    @Test
+    void execSupportsEnvWorkingDirAndWait() {
+        requireVmIntegration();
+        try (BoxliteRuntime runtime = newRuntimeForTest("case-exec-env")) {
+            BoxOptions options = BoxOptions.builder()
+                .autoRemove(false)
+                .build();
+            BoxHandle box = runtime.create(options, "java-phase2-exec-env-" + UUID.randomUUID()).join();
+            ExecutionHandle exec = box.exec(
+                ExecCommand.builder("sh")
+                    .addArg("-lc")
+                    .addArg("printf '%s|%s\\n' \"$BOXLITE_JAVA_PHASE2\" \"$PWD\"")
+                    .putEnv("BOXLITE_JAVA_PHASE2", "ok")
+                    .workingDir("/")
+                    .build()
+            ).join();
+
+            String line = exec.stdoutNextLine().join().orElseThrow();
+            ExecResult result = exec.waitFor().join();
+
+            assertEquals("ok|/", line.strip());
+            assertTrue(result.success(), "execution should succeed");
+
+            exec.close();
+            runtime.remove(box.id(), true).join();
+            box.close();
+        }
+    }
+
+    @Test
+    void execStdinRoundTripWorks() {
+        requireVmIntegration();
+        try (BoxliteRuntime runtime = newRuntimeForTest("case-exec-stdin")) {
+            BoxOptions options = BoxOptions.builder()
+                .autoRemove(false)
+                .build();
+            BoxHandle box = runtime.create(options, "java-phase2-exec-stdin-" + UUID.randomUUID()).join();
+            ExecutionHandle exec = box.exec(ExecCommand.builder("cat").build()).join();
+
+            exec.stdinWrite("hello-stdin\n".getBytes(StandardCharsets.UTF_8)).join();
+            exec.stdinClose().join();
+            String line = exec.stdoutNextLine().join().orElseThrow();
+            ExecResult result = exec.waitFor().join();
+
+            assertEquals("hello-stdin", line.strip());
+            assertTrue(result.success(), "cat should exit successfully");
+
+            exec.close();
+            runtime.remove(box.id(), true).join();
+            box.close();
+        }
+    }
+
+    @Test
+    void execCanBeKilled() {
+        requireVmIntegration();
+        try (BoxliteRuntime runtime = newRuntimeForTest("case-exec-kill")) {
+            BoxOptions options = BoxOptions.builder()
+                .autoRemove(false)
+                .build();
+            BoxHandle box = runtime.create(options, "java-phase2-exec-kill-" + UUID.randomUUID()).join();
+            ExecutionHandle exec = box.exec(
+                ExecCommand.builder("sh")
+                    .addArg("-lc")
+                    .addArg("sleep 30")
+                    .build()
+            ).join();
+
+            exec.kill().join();
+            ExecResult result = exec.waitFor().join();
+            assertFalse(result.success(), "killed command should not succeed");
+
+            exec.close();
             runtime.remove(box.id(), true).join();
             box.close();
         }

@@ -55,6 +55,24 @@ public final class BoxHandle implements AutoCloseable {
         });
     }
 
+    public CompletableFuture<ExecutionHandle> exec(ExecCommand command) {
+        return runtime.async(() -> {
+            runtime.requireNativeHandle();
+            if (command == null) {
+                throw new ConfigException("command must not be null");
+            }
+
+            long execHandle = NativeBindings.boxExec(
+                state.requireNativeHandle(),
+                JsonSupport.write(command)
+            );
+            if (execHandle == 0L) {
+                throw new InternalException("Native boxExec returned invalid handle 0");
+            }
+            return new ExecutionHandle(runtime, execHandle);
+        });
+    }
+
     public CompletableFuture<Void> copyIn(Path hostPath, String containerDest, CopyOptions options) {
         return runtime.async(() -> {
             runtime.requireNativeHandle();

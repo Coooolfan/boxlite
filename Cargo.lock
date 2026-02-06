@@ -433,6 +433,7 @@ name = "boxlite-java-native"
 version = "0.5.9"
 dependencies = [
  "boxlite",
+ "futures",
  "jni",
  "once_cell",
  "serde",

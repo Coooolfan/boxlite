@@ -2,19 +2,23 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
+use std::time::Duration;
 
 use boxlite::{
-    BoxInfo, BoxOptions, BoxStatus, BoxliteError, BoxliteOptions, BoxliteResult, BoxliteRuntime,
-    CopyOptions, LiteBox, RootfsSpec,
+    BoxCommand, BoxInfo, BoxOptions, BoxStatus, BoxliteError, BoxliteOptions, BoxliteResult,
+    BoxliteRuntime, CopyOptions, ExecResult, ExecStderr, ExecStdin, ExecStdout, Execution,
+    LiteBox, RootfsSpec,
 };
+use futures::StreamExt;
 use jni::JNIEnv;
-use jni::objects::{JClass, JObject, JString};
+use jni::objects::{JByteArray, JClass, JObject, JString};
 use jni::sys::{jboolean, jint, jlong, jlongArray, jstring};
 use once_cell::sync::Lazy;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex as AsyncMutex;
 
-const ABI_VERSION: jint = 1;
+const ABI_VERSION: jint = 2;
 
 static NEXT_HANDLE: AtomicI64 = AtomicI64::new(1);
 static TOKIO: Lazy<tokio::runtime::Runtime> = Lazy::new(|| {
@@ -26,11 +30,23 @@ static TOKIO: Lazy<tokio::runtime::Runtime> = Lazy::new(|| {
 static RUNTIMES: Lazy<Mutex<HashMap<i64, Arc<BoxliteRuntime>>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
 static BOXES: Lazy<Mutex<HashMap<i64, BoxHandleEntry>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+static EXECUTIONS: Lazy<Mutex<HashMap<i64, ExecutionHandleEntry>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
 
 #[derive(Clone)]
 struct BoxHandleEntry {
     runtime_handle: i64,
     handle: Arc<LiteBox>,
+}
+
+#[derive(Clone)]
+struct ExecutionHandleEntry {
+    runtime_handle: i64,
+    id: String,
+    execution: Arc<AsyncMutex<Execution>>,
+    stdin: Arc<AsyncMutex<Option<ExecStdin>>>,
+    stdout: Arc<AsyncMutex<Option<ExecStdout>>>,
+    stderr: Arc<AsyncMutex<Option<ExecStderr>>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -72,6 +88,20 @@ struct JavaCopyOptions {
     include_parent: bool,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct JavaExecCommand {
+    command: String,
+    #[serde(default)]
+    args: Vec<String>,
+    #[serde(default)]
+    env: HashMap<String, String>,
+    timeout_millis: Option<u64>,
+    working_dir: Option<String>,
+    #[serde(default)]
+    tty: bool,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct JavaRuntimeMetrics {
@@ -81,6 +111,13 @@ struct JavaRuntimeMetrics {
     num_running_boxes: u64,
     total_commands_executed: u64,
     total_exec_errors: u64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct JavaExecResult {
+    exit_code: i32,
+    error_message: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -198,6 +235,12 @@ fn lock_boxes() -> BoxliteResult<MutexGuard<'static, HashMap<i64, BoxHandleEntry
         .map_err(|e| BoxliteError::Internal(format!("box handle table lock poisoned: {e}")))
 }
 
+fn lock_executions() -> BoxliteResult<MutexGuard<'static, HashMap<i64, ExecutionHandleEntry>>> {
+    EXECUTIONS.lock().map_err(|e| {
+        BoxliteError::Internal(format!("execution handle table lock poisoned: {e}"))
+    })
+}
+
 fn insert_runtime_handle(runtime: BoxliteRuntime) -> BoxliteResult<i64> {
     let native_handle = allocate_handle();
     lock_runtimes()?.insert(native_handle, Arc::new(runtime));
@@ -225,6 +268,9 @@ fn remove_runtime(runtime_handle: jlong) -> BoxliteResult<()> {
 
     let mut boxes = lock_boxes()?;
     boxes.retain(|_, entry| entry.runtime_handle != native_handle);
+
+    let mut executions = lock_executions()?;
+    executions.retain(|_, entry| entry.runtime_handle != native_handle);
     Ok(())
 }
 
@@ -256,6 +302,62 @@ fn get_box_entry(box_handle: jlong) -> BoxliteResult<BoxHandleEntry> {
 fn remove_box_handle(box_handle: jlong) -> BoxliteResult<()> {
     let native_handle = box_handle_from_jlong(box_handle)?;
     lock_boxes()?.remove(&native_handle);
+    Ok(())
+}
+
+fn insert_execution_handle(
+    runtime_handle: i64,
+    mut execution: Execution,
+) -> BoxliteResult<i64> {
+    let native_handle = allocate_handle();
+    let id = execution.id().to_owned();
+    let stdin = execution.stdin();
+    let stdout = execution.stdout();
+    let stderr = execution.stderr();
+    let entry = ExecutionHandleEntry {
+        runtime_handle,
+        id,
+        execution: Arc::new(AsyncMutex::new(execution)),
+        stdin: Arc::new(AsyncMutex::new(stdin)),
+        stdout: Arc::new(AsyncMutex::new(stdout)),
+        stderr: Arc::new(AsyncMutex::new(stderr)),
+    };
+    lock_executions()?.insert(native_handle, entry);
+    Ok(native_handle)
+}
+
+fn execution_handle_from_jlong(handle: jlong) -> BoxliteResult<i64> {
+    if handle <= 0 {
+        return Err(BoxliteError::InvalidState(format!(
+            "execution handle must be positive, got {handle}"
+        )));
+    }
+    Ok(handle as i64)
+}
+
+fn get_execution_entry(execution_handle: jlong) -> BoxliteResult<ExecutionHandleEntry> {
+    let native_handle = execution_handle_from_jlong(execution_handle)?;
+    let entry = lock_executions()?
+        .get(&native_handle)
+        .cloned()
+        .ok_or_else(|| {
+            BoxliteError::InvalidState(format!(
+                "execution handle {execution_handle} is not active"
+            ))
+        })?;
+
+    if !lock_runtimes()?.contains_key(&entry.runtime_handle) {
+        return Err(BoxliteError::InvalidState(format!(
+            "execution handle {execution_handle} belongs to a closed runtime"
+        )));
+    }
+
+    Ok(entry)
+}
+
+fn remove_execution_handle(execution_handle: jlong) -> BoxliteResult<()> {
+    let native_handle = execution_handle_from_jlong(execution_handle)?;
+    lock_executions()?.remove(&native_handle);
     Ok(())
 }
 
@@ -302,6 +404,20 @@ fn read_required_string(
     read_optional_string(env, value, arg_name)?.ok_or_else(|| {
         BoxliteError::InvalidArgument(format!("{arg_name} must not be null or blank"))
     })
+}
+
+fn read_required_bytes(
+    env: &mut JNIEnv<'_>,
+    value: JByteArray<'_>,
+    arg_name: &str,
+) -> BoxliteResult<Vec<u8>> {
+    if value.is_null() {
+        return Err(BoxliteError::InvalidArgument(format!(
+            "{arg_name} must not be null"
+        )));
+    }
+    env.convert_byte_array(&value)
+        .map_err(|e| BoxliteError::InvalidArgument(format!("Invalid {arg_name}: {e}")))
 }
 
 fn parse_json_from_string<T: DeserializeOwned>(
@@ -385,6 +501,44 @@ fn java_copy_options_to_native(dto: JavaCopyOptions) -> CopyOptions {
         overwrite: dto.overwrite,
         follow_symlinks: dto.follow_symlinks,
         include_parent: dto.include_parent,
+    }
+}
+
+fn java_exec_command_to_native(dto: JavaExecCommand) -> BoxliteResult<BoxCommand> {
+    if dto.command.trim().is_empty() {
+        return Err(BoxliteError::InvalidArgument(
+            "command must not be null or blank".to_string(),
+        ));
+    }
+    if let Some(timeout_millis) = dto.timeout_millis
+        && timeout_millis == 0
+    {
+        return Err(BoxliteError::InvalidArgument(
+            "timeoutMillis must be > 0 when provided".to_string(),
+        ));
+    }
+
+    let mut command = BoxCommand::new(dto.command).args(dto.args).tty(dto.tty);
+    if !dto.env.is_empty() {
+        for (key, value) in dto.env {
+            command = command.env(key, value);
+        }
+    }
+    if let Some(timeout_millis) = dto.timeout_millis {
+        command = command.timeout(Duration::from_millis(timeout_millis));
+    }
+    if let Some(working_dir) = dto.working_dir
+        && !working_dir.trim().is_empty()
+    {
+        command = command.working_dir(working_dir);
+    }
+    Ok(command)
+}
+
+fn exec_result_to_java(result: ExecResult) -> JavaExecResult {
+    JavaExecResult {
+        exit_code: result.exit_code,
+        error_message: result.error_message,
     }
 }
 
@@ -798,6 +952,31 @@ pub extern "system" fn Java_io_boxlite_loader_NativeBindings_nativeBoxStop(
 }
 
 #[unsafe(no_mangle)]
+pub extern "system" fn Java_io_boxlite_loader_NativeBindings_nativeBoxExec(
+    mut env: JNIEnv<'_>,
+    _class: JClass<'_>,
+    box_handle: jlong,
+    exec_command_json: JString<'_>,
+) -> jlong {
+    let result: BoxliteResult<i64> = (|| {
+        let entry = get_box_entry(box_handle)?;
+        let dto: JavaExecCommand =
+            parse_json_from_string(&mut env, exec_command_json, "execCommandJson")?;
+        let command = java_exec_command_to_native(dto)?;
+        let execution = TOKIO.block_on(entry.handle.exec(command))?;
+        insert_execution_handle(entry.runtime_handle, execution)
+    })();
+
+    match result {
+        Ok(handle) => handle as jlong,
+        Err(err) => {
+            throw_boxlite_error(&mut env, err);
+            0
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
 pub extern "system" fn Java_io_boxlite_loader_NativeBindings_nativeBoxCopyIn(
     mut env: JNIEnv<'_>,
     _class: JClass<'_>,
@@ -817,6 +996,197 @@ pub extern "system" fn Java_io_boxlite_loader_NativeBindings_nativeBoxCopyIn(
             &container_dest,
             java_copy_options_to_native(copy_options),
         ))
+    })();
+
+    if let Err(err) = result {
+        throw_boxlite_error(&mut env, err);
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_io_boxlite_loader_NativeBindings_nativeExecutionFree(
+    mut env: JNIEnv<'_>,
+    _class: JClass<'_>,
+    execution_handle: jlong,
+) {
+    if execution_handle <= 0 {
+        return;
+    }
+
+    if let Err(err) = remove_execution_handle(execution_handle) {
+        throw_boxlite_error(&mut env, err);
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_io_boxlite_loader_NativeBindings_nativeExecutionId(
+    mut env: JNIEnv<'_>,
+    _class: JClass<'_>,
+    execution_handle: jlong,
+) -> jstring {
+    let result: BoxliteResult<String> = (|| {
+        let entry = get_execution_entry(execution_handle)?;
+        Ok(entry.id)
+    })();
+
+    match result {
+        Ok(value) => to_jstring(&mut env, &value),
+        Err(err) => {
+            throw_boxlite_error(&mut env, err);
+            std::ptr::null_mut()
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_io_boxlite_loader_NativeBindings_nativeExecutionStdinWrite(
+    mut env: JNIEnv<'_>,
+    _class: JClass<'_>,
+    execution_handle: jlong,
+    data: JByteArray<'_>,
+) {
+    let result: BoxliteResult<()> = (|| {
+        let entry = get_execution_entry(execution_handle)?;
+        let bytes = read_required_bytes(&mut env, data, "data")?;
+        let mut stdin_guard = TOKIO.block_on(entry.stdin.lock());
+        let stdin = stdin_guard.as_mut().ok_or_else(|| {
+            BoxliteError::InvalidState("stdin is not available for this execution".to_string())
+        })?;
+        TOKIO.block_on(stdin.write(&bytes))
+    })();
+
+    if let Err(err) = result {
+        throw_boxlite_error(&mut env, err);
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_io_boxlite_loader_NativeBindings_nativeExecutionStdinClose(
+    mut env: JNIEnv<'_>,
+    _class: JClass<'_>,
+    execution_handle: jlong,
+) {
+    let result: BoxliteResult<()> = (|| {
+        let entry = get_execution_entry(execution_handle)?;
+        let mut stdin_guard = TOKIO.block_on(entry.stdin.lock());
+        let stdin = stdin_guard.as_mut().ok_or_else(|| {
+            BoxliteError::InvalidState("stdin is not available for this execution".to_string())
+        })?;
+        stdin.close();
+        Ok(())
+    })();
+
+    if let Err(err) = result {
+        throw_boxlite_error(&mut env, err);
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_io_boxlite_loader_NativeBindings_nativeExecutionStdoutNextLine(
+    mut env: JNIEnv<'_>,
+    _class: JClass<'_>,
+    execution_handle: jlong,
+) -> jstring {
+    let result: BoxliteResult<Option<String>> = (|| {
+        let entry = get_execution_entry(execution_handle)?;
+        let mut stdout_guard = TOKIO.block_on(entry.stdout.lock());
+        let stdout = stdout_guard.as_mut().ok_or_else(|| {
+            BoxliteError::InvalidState("stdout is not available for this execution".to_string())
+        })?;
+        Ok(TOKIO.block_on(stdout.next()))
+    })();
+
+    match result {
+        Ok(Some(line)) => to_jstring(&mut env, &line),
+        Ok(None) => std::ptr::null_mut(),
+        Err(err) => {
+            throw_boxlite_error(&mut env, err);
+            std::ptr::null_mut()
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_io_boxlite_loader_NativeBindings_nativeExecutionStderrNextLine(
+    mut env: JNIEnv<'_>,
+    _class: JClass<'_>,
+    execution_handle: jlong,
+) -> jstring {
+    let result: BoxliteResult<Option<String>> = (|| {
+        let entry = get_execution_entry(execution_handle)?;
+        let mut stderr_guard = TOKIO.block_on(entry.stderr.lock());
+        let stderr = stderr_guard.as_mut().ok_or_else(|| {
+            BoxliteError::InvalidState("stderr is not available for this execution".to_string())
+        })?;
+        Ok(TOKIO.block_on(stderr.next()))
+    })();
+
+    match result {
+        Ok(Some(line)) => to_jstring(&mut env, &line),
+        Ok(None) => std::ptr::null_mut(),
+        Err(err) => {
+            throw_boxlite_error(&mut env, err);
+            std::ptr::null_mut()
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_io_boxlite_loader_NativeBindings_nativeExecutionWait(
+    mut env: JNIEnv<'_>,
+    _class: JClass<'_>,
+    execution_handle: jlong,
+) -> jstring {
+    let result: BoxliteResult<String> = (|| {
+        let entry = get_execution_entry(execution_handle)?;
+        let mut execution = TOKIO.block_on(entry.execution.lock());
+        let result = TOKIO.block_on(execution.wait())?;
+        serialize_json(&exec_result_to_java(result))
+    })();
+
+    match result {
+        Ok(json) => to_jstring(&mut env, &json),
+        Err(err) => {
+            throw_boxlite_error(&mut env, err);
+            std::ptr::null_mut()
+        }
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_io_boxlite_loader_NativeBindings_nativeExecutionKill(
+    mut env: JNIEnv<'_>,
+    _class: JClass<'_>,
+    execution_handle: jlong,
+) {
+    let result: BoxliteResult<()> = (|| {
+        let entry = get_execution_entry(execution_handle)?;
+        let mut execution = TOKIO.block_on(entry.execution.lock());
+        TOKIO.block_on(execution.kill())
+    })();
+
+    if let Err(err) = result {
+        throw_boxlite_error(&mut env, err);
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_io_boxlite_loader_NativeBindings_nativeExecutionResizeTty(
+    mut env: JNIEnv<'_>,
+    _class: JClass<'_>,
+    execution_handle: jlong,
+    rows: jint,
+    cols: jint,
+) {
+    let result: BoxliteResult<()> = (|| {
+        if rows <= 0 || cols <= 0 {
+            return Err(BoxliteError::InvalidArgument(
+                "rows and cols must both be > 0".to_string(),
+            ));
+        }
+        let entry = get_execution_entry(execution_handle)?;
+        let execution = TOKIO.block_on(entry.execution.lock());
+        TOKIO.block_on(execution.resize_tty(rows as u32, cols as u32))
     })();
 
     if let Err(err) = result {
@@ -861,8 +1231,10 @@ pub extern "system" fn Java_io_boxlite_loader_NativeBindings_nativeAbiVersion(
 
 #[cfg(test)]
 mod tests {
-    use super::{JavaBoxOptions, java_box_options_to_native};
-    use boxlite::RootfsSpec;
+    use super::{
+        JavaBoxOptions, JavaExecCommand, java_box_options_to_native, java_exec_command_to_native,
+    };
+    use boxlite::{BoxliteError, RootfsSpec};
     use std::collections::HashMap;
 
     #[test]
@@ -921,6 +1293,43 @@ mod tests {
         assert!(
             matches!(options.rootfs, RootfsSpec::Image(_)),
             "image input should still map to image rootfs"
+        );
+    }
+
+    #[test]
+    fn java_exec_command_accepts_supported_fields() {
+        let mut env = HashMap::new();
+        env.insert("FOO".to_string(), "bar".to_string());
+
+        let result = java_exec_command_to_native(JavaExecCommand {
+            command: "sh".to_string(),
+            args: vec!["-lc".to_string(), "echo hi".to_string()],
+            env,
+            timeout_millis: Some(1_500),
+            working_dir: Some("/workspace".to_string()),
+            tty: true,
+        });
+
+        assert!(
+            result.is_ok(),
+            "valid command with args/env/timeout/workingDir/tty should convert successfully"
+        );
+    }
+
+    #[test]
+    fn java_exec_command_rejects_blank_command() {
+        let result = java_exec_command_to_native(JavaExecCommand {
+            command: "   ".to_string(),
+            args: Vec::new(),
+            env: HashMap::new(),
+            timeout_millis: None,
+            working_dir: None,
+            tty: false,
+        });
+
+        assert!(
+            matches!(result, Err(BoxliteError::InvalidArgument(_))),
+            "blank command should fail with InvalidArgument"
         );
     }
 }

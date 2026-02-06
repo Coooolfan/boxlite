@@ -1,4 +1,4 @@
-# BoxLite Java SDK (Phase 1)
+# BoxLite Java SDK (Phase 2)
 
 Java SDK for BoxLite using JNI to call Rust core directly.
 
@@ -9,6 +9,12 @@ Java SDK for BoxLite using JNI to call Rust core directly.
 - `sdk-highlevel`: high-level API placeholder for next phases
 - `samples/smoke`: local smoke app (runtime + create/get/list/remove/shutdown)
 - `native`: Rust JNI crate (`boxlite-java-native`)
+
+Phase 2 adds execution APIs in `sdk-core`:
+
+- `BoxHandle.exec(ExecCommand)`
+- `ExecutionHandle.stdinWrite/stdinClose/stdoutNextLine/stderrNextLine/waitFor/kill/resizeTty`
+- `ExecResult`
 
 ## Local Commands
 

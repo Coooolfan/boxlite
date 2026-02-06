@@ -4,7 +4,7 @@ import io.boxlite.BoxliteException;
 
 /** JNI bridge for runtime and box lifecycle operations. */
 public final class NativeBindings {
-    private static final int EXPECTED_ABI_VERSION = 1;
+    private static final int EXPECTED_ABI_VERSION = 2;
 
     static {
         NativeLoader.load();
@@ -95,6 +95,10 @@ public final class NativeBindings {
         nativeBoxStop(boxHandle);
     }
 
+    public static long boxExec(long boxHandle, String execCommandJson) {
+        return nativeBoxExec(boxHandle, execCommandJson);
+    }
+
     public static void boxCopyIn(
         long boxHandle,
         String hostPath,
@@ -111,6 +115,42 @@ public final class NativeBindings {
         String copyOptionsJson
     ) {
         nativeBoxCopyOut(boxHandle, containerSrc, hostDest, copyOptionsJson);
+    }
+
+    public static void executionFree(long executionHandle) {
+        nativeExecutionFree(executionHandle);
+    }
+
+    public static String executionId(long executionHandle) {
+        return nativeExecutionId(executionHandle);
+    }
+
+    public static void executionStdinWrite(long executionHandle, byte[] data) {
+        nativeExecutionStdinWrite(executionHandle, data);
+    }
+
+    public static void executionStdinClose(long executionHandle) {
+        nativeExecutionStdinClose(executionHandle);
+    }
+
+    public static String executionStdoutNextLine(long executionHandle) {
+        return nativeExecutionStdoutNextLine(executionHandle);
+    }
+
+    public static String executionStderrNextLine(long executionHandle) {
+        return nativeExecutionStderrNextLine(executionHandle);
+    }
+
+    public static String executionWait(long executionHandle) {
+        return nativeExecutionWait(executionHandle);
+    }
+
+    public static void executionKill(long executionHandle) {
+        nativeExecutionKill(executionHandle);
+    }
+
+    public static void executionResizeTty(long executionHandle, int rows, int cols) {
+        nativeExecutionResizeTty(executionHandle, rows, cols);
     }
 
     public static int abiVersion() {
@@ -155,6 +195,8 @@ public final class NativeBindings {
 
     private static native void nativeBoxStop(long boxHandle);
 
+    private static native long nativeBoxExec(long boxHandle, String execCommandJson);
+
     private static native void nativeBoxCopyIn(
         long boxHandle,
         String hostPath,
@@ -168,6 +210,24 @@ public final class NativeBindings {
         String hostDest,
         String copyOptionsJson
     );
+
+    private static native void nativeExecutionFree(long executionHandle);
+
+    private static native String nativeExecutionId(long executionHandle);
+
+    private static native void nativeExecutionStdinWrite(long executionHandle, byte[] data);
+
+    private static native void nativeExecutionStdinClose(long executionHandle);
+
+    private static native String nativeExecutionStdoutNextLine(long executionHandle);
+
+    private static native String nativeExecutionStderrNextLine(long executionHandle);
+
+    private static native String nativeExecutionWait(long executionHandle);
+
+    private static native void nativeExecutionKill(long executionHandle);
+
+    private static native void nativeExecutionResizeTty(long executionHandle, int rows, int cols);
 
     private static native int nativeAbiVersion();
 }

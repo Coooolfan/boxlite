@@ -12,6 +12,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 boxlite = { path = "../../../boxlite" }
+futures = "0.3"
 jni = "0.21"
 once_cell = "1"
 serde = { version = "1", features = ["derive"] }

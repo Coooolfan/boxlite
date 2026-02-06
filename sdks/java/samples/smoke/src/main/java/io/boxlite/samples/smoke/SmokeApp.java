@@ -1,13 +1,12 @@
 package io.boxlite.samples.smoke;
 
-import io.boxlite.BoxHandle;
-import io.boxlite.BoxOptions;
-import io.boxlite.Boxlite;
-import io.boxlite.BoxliteRuntime;
-import io.boxlite.GetOrCreateResult;
+import io.boxlite.*;
+
 import java.util.UUID;
 
-/** Phase 1 smoke application for local verification. */
+/**
+ * Phase 2 smoke application for local verification.
+ */
 public final class SmokeApp {
     private SmokeApp() {
     }
@@ -26,7 +25,21 @@ public final class SmokeApp {
             System.out.println("Box created now: " + result.created());
             System.out.println("Boxes total: " + runtime.listInfo().join().size());
 
-            runtime.remove(box.id(), false).join();
+            ExecutionHandle execEcho = box.exec(
+                    ExecCommand.builder("sh")
+                            .addArg("-lc")
+                            .addArg("echo hello-from-boxlite-java")
+                            .build()
+            ).join();
+
+            String lineEcho = execEcho.stdoutNextLine().join().orElse("<no stdout>");
+            ExecResult execEchoResult = execEcho.waitFor().join();
+            System.out.println("Exec stdout: " + lineEcho.strip());
+            System.out.println("Exec exit code: " + execEchoResult.exitCode());
+
+            execEcho.close();
+
+            runtime.remove(box.id(), true).join();
             box.close();
             runtime.shutdown(1).join();
         }
