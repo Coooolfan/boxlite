@@ -21,6 +21,14 @@ abstract class SyncNativeResourcesTask : DefaultTask() {
     @get:PathSensitive(PathSensitivity.NONE)
     abstract val nativeLibraryFile: RegularFileProperty
 
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val guestBinaryFile: RegularFileProperty
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val shimBinaryFile: RegularFileProperty
+
     @get:InputDirectory
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val boxliteBuildDir: DirectoryProperty
@@ -37,6 +45,14 @@ abstract class SyncNativeResourcesTask : DefaultTask() {
         if (!nativeFile.exists()) {
             throw GradleException("Native library not found after cargo build: ${nativeFile.path}")
         }
+        val guestBinary = guestBinaryFile.get().asFile
+        if (!guestBinary.exists()) {
+            throw GradleException("Guest binary not found after cargo build: ${guestBinary.path}")
+        }
+        val shimBinary = shimBinaryFile.get().asFile
+        if (!shimBinary.exists()) {
+            throw GradleException("Shim binary not found after cargo build: ${shimBinary.path}")
+        }
 
         val runtimeSourceDir = findRuntimeLibrariesDir(boxliteBuildDir.get().asFile)
 
@@ -47,6 +63,12 @@ abstract class SyncNativeResourcesTask : DefaultTask() {
         platformDir.mkdirs()
 
         nativeFile.copyTo(platformDir.resolve(nativeFile.name), overwrite = true)
+        val guestTarget = platformDir.resolve("boxlite-guest")
+        guestBinary.copyTo(guestTarget, overwrite = true)
+        guestTarget.setExecutable(true, false)
+        val shimTarget = platformDir.resolve("boxlite-shim")
+        shimBinary.copyTo(shimTarget, overwrite = true)
+        shimTarget.setExecutable(true, false)
 
         val runtimeTargetDir = platformDir.resolve("runtime")
         runtimeSourceDir.copyRecursively(runtimeTargetDir, overwrite = true)
@@ -95,6 +117,15 @@ fun resolvePlatformId(osName: String, archName: String): String {
     }
 }
 
+fun resolveGuestTarget(archName: String): String {
+    val archRaw = archName.lowercase()
+    return when (archRaw) {
+        "aarch64", "arm64" -> "aarch64-unknown-linux-musl"
+        "x86_64", "amd64" -> "x86_64-unknown-linux-musl"
+        else -> throw GradleException("Unsupported architecture for guest build: $archName")
+    }
+}
+
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(25))
@@ -107,22 +138,37 @@ val repoRoot = rootProject.projectDir.resolve("../..").canonicalFile
 val nativeCrateName = "boxlite-java-native"
 val nativeLibraryBaseName = "boxlite_java_native"
 val nativeLibraryName = System.mapLibraryName(nativeLibraryBaseName)
+val guestTarget = resolveGuestTarget(System.getProperty("os.arch"))
 val nativeLibraryOutputFile = repoRoot.resolve("target/debug/$nativeLibraryName")
+val guestBinaryOutputFile = repoRoot.resolve("target/$guestTarget/debug/boxlite-guest")
+val shimBinaryOutputFile = repoRoot.resolve("target/debug/boxlite-shim")
 
 val cargoBuildNativeDebug = tasks.register<Exec>("cargoBuildNativeDebug") {
     workingDir = repoRoot
-    commandLine("bash", "-lc", "source \"${'$'}HOME/.cargo/env\" && cargo build -p $nativeCrateName")
+    commandLine(
+        "bash",
+        "-lc",
+        "source \"${'$'}HOME/.cargo/env\" && cargo build -p $nativeCrateName && cargo build -p boxlite --bin boxlite-shim && cargo build --target $guestTarget -p boxlite-guest",
+    )
 
     inputs.file(repoRoot.resolve("Cargo.toml"))
     inputs.file(repoRoot.resolve("sdks/java/native/Cargo.toml"))
+    inputs.file(repoRoot.resolve("guest/Cargo.toml"))
     inputs.dir(repoRoot.resolve("sdks/java/native/src"))
+    inputs.dir(repoRoot.resolve("boxlite/src"))
+    inputs.dir(repoRoot.resolve("guest/src"))
+    inputs.property("guestTarget", guestTarget)
     outputs.file(nativeLibraryOutputFile)
+    outputs.file(guestBinaryOutputFile)
+    outputs.file(shimBinaryOutputFile)
 }
 
 val syncNativeResources = tasks.register<SyncNativeResourcesTask>("syncNativeResources") {
     dependsOn(cargoBuildNativeDebug)
 
     nativeLibraryFile.set(nativeLibraryOutputFile)
+    guestBinaryFile.set(guestBinaryOutputFile)
+    shimBinaryFile.set(shimBinaryOutputFile)
     boxliteBuildDir.set(repoRoot.resolve("target/debug/build"))
     platformId.set(resolvePlatformId(System.getProperty("os.name"), System.getProperty("os.arch")))
     outputBaseDir.set(layout.buildDirectory.dir("generated/native"))
@@ -140,6 +186,7 @@ tasks.named("processResources") {
 
 dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter:5.12.0")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.12.0")
 }
 
 tasks.withType<Test>().configureEach {

@@ -1,13 +1,13 @@
-# BoxLite Java SDK (Phase 0)
+# BoxLite Java SDK (Phase 1)
 
 Java SDK for BoxLite using JNI to call Rust core directly.
 
 ## Modules
 
-- `sdk-core`: public Java API (`Boxlite`, `BoxliteRuntime`, exceptions)
+- `sdk-core`: public Java API (`Boxlite`, `BoxliteRuntime`, `BoxHandle`, models)
 - `sdk-native-loader`: native library loading and ABI checks
 - `sdk-highlevel`: high-level API placeholder for next phases
-- `samples/smoke`: local smoke app (`version()` + `newRuntime()`)
+- `samples/smoke`: local smoke app (runtime + create/get/list/remove/shutdown)
 - `native`: Rust JNI crate (`boxlite-java-native`)
 
 ## Local Commands
@@ -17,6 +17,12 @@ From repository root:
 ```bash
 GRADLE_USER_HOME=.gradle-local ./sdks/java/gradlew -p sdks/java build
 GRADLE_USER_HOME=.gradle-local ./sdks/java/gradlew -p sdks/java :samples:smoke:run
+```
+
+Run VM integration tests (start/stop/copy) explicitly:
+
+```bash
+BOXLITE_JAVA_RUN_VM_TESTS=1 ./sdks/java/gradlew -p sdks/java :sdk-core:test
 ```
 
 ## Native Override

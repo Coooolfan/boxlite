@@ -247,6 +247,14 @@ Python SDK 已证明这套能力可完整封装：
 - 集成测试：真实 VM 场景（create/exec/copy/metrics）
 - E2E 示例测试：对外 README 示例可运行
 
+### 7.2 执行权限要求（新增）
+
+- 本地推荐命令：`./sdks/java/gradlew -p sdks/java test :samples:smoke:run`
+- 在受限沙箱/CI 环境中，Gradle 可能因 `~/.gradle` 锁文件或系统信息探测被拒绝访问而失败。
+- 若出现权限错误，需使用提权执行测试，或放开以下能力：
+  - 允许写入 `~/.gradle`（wrapper lock、缓存）
+  - 允许 Java/Gradle 获取基础系统信息（native platform probe）
+
 ## 7. 风险与缓解
 
 - JNI 生命周期复杂：  

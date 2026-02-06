@@ -80,11 +80,29 @@ public final class NativeLoader {
             copyResource(libraryResourcePath, extractedLibrary);
             extractedLibrary.toFile().deleteOnExit();
 
+            extractShimBinary(tempDir, platform);
+            extractGuestBinary(tempDir, platform);
             extractRuntimeLibraries(tempDir, platform);
             System.load(extractedLibrary.toAbsolutePath().toString());
         } catch (IOException e) {
             throw new BoxliteException("Failed to load native library for platform " + platform, e);
         }
+    }
+
+    private static void extractShimBinary(Path tempDir, String platform) throws IOException {
+        String resourcePath = "/native/" + platform + "/boxlite-shim";
+        Path shimBinary = tempDir.resolve("boxlite-shim");
+        copyResource(resourcePath, shimBinary);
+        markExecutable(shimBinary);
+        shimBinary.toFile().deleteOnExit();
+    }
+
+    private static void extractGuestBinary(Path tempDir, String platform) throws IOException {
+        String resourcePath = "/native/" + platform + "/boxlite-guest";
+        Path guestBinary = tempDir.resolve("boxlite-guest");
+        copyResource(resourcePath, guestBinary);
+        markExecutable(guestBinary);
+        guestBinary.toFile().deleteOnExit();
     }
 
     private static void extractRuntimeLibraries(Path tempDir, String platform) throws IOException {
@@ -115,6 +133,7 @@ public final class NativeLoader {
                 String resourcePath = "/native/" + platform + "/runtime/" + fileName;
                 Path outFile = runtimeDir.resolve(fileName);
                 copyResource(resourcePath, outFile);
+                markExecutable(outFile);
                 outFile.toFile().deleteOnExit();
             }
         }
@@ -126,6 +145,12 @@ public final class NativeLoader {
                 throw new BoxliteException("Missing native resource: " + resourcePath);
             }
             Files.copy(inputStream, destination, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private static void markExecutable(Path file) {
+        if (!file.toFile().setExecutable(true, false)) {
+            throw new BoxliteException("Failed to mark runtime helper as executable: " + file);
         }
     }
 }
