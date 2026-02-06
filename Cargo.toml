@@ -8,6 +8,7 @@ members = [
     "boxlite-shared",
     "guest",
     "sdks/c",
+    "sdks/java/native",
     "sdks/python",
     "sdks/node",
 ]

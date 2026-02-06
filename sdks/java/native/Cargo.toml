@@ -1,0 +1,16 @@
+[package]
+name = "boxlite-java-native"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Java JNI bindings for BoxLite"
+
+[lib]
+name = "boxlite_java_native"
+crate-type = ["cdylib"]
+
+[dependencies]
+boxlite = { path = "../../../boxlite" }
+jni = "0.21"
+once_cell = "1"
