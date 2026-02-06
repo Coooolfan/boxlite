@@ -33,6 +33,10 @@ abstract class SyncNativeResourcesTask : DefaultTask() {
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val boxliteBuildDir: DirectoryProperty
 
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val signScriptFile: RegularFileProperty
+
     @get:Input
     abstract val platformId: Property<String>
 
@@ -69,6 +73,7 @@ abstract class SyncNativeResourcesTask : DefaultTask() {
         val shimTarget = platformDir.resolve("boxlite-shim")
         shimBinary.copyTo(shimTarget, overwrite = true)
         shimTarget.setExecutable(true, false)
+        signShimIfRequired(shimTarget)
 
         val runtimeTargetDir = platformDir.resolve("runtime")
         runtimeSourceDir.copyRecursively(runtimeTargetDir, overwrite = true)
@@ -84,6 +89,30 @@ abstract class SyncNativeResourcesTask : DefaultTask() {
             runtimeFiles.joinToString("\n", postfix = if (runtimeFiles.isEmpty()) "" else "\n"),
             StandardCharsets.UTF_8,
         )
+    }
+
+    private fun signShimIfRequired(shimBinary: File) {
+        if (!platformId.get().startsWith("darwin-")) {
+            return
+        }
+
+        val signScript = signScriptFile.get().asFile
+        if (!signScript.exists()) {
+            throw GradleException("Shim signing script not found: ${signScript.path}")
+        }
+
+        val process = ProcessBuilder("bash", signScript.absolutePath, shimBinary.absolutePath)
+            .directory(signScript.parentFile)
+            .redirectErrorStream(true)
+            .start()
+
+        val output = process.inputStream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
+        val exitCode = process.waitFor()
+        if (exitCode != 0) {
+            throw GradleException(
+                "Failed to sign shim binary at ${shimBinary.path} with exit code $exitCode:\n$output",
+            )
+        }
     }
 
     private fun findRuntimeLibrariesDir(buildRoot: File): File {
@@ -170,6 +199,7 @@ val syncNativeResources = tasks.register<SyncNativeResourcesTask>("syncNativeRes
     guestBinaryFile.set(guestBinaryOutputFile)
     shimBinaryFile.set(shimBinaryOutputFile)
     boxliteBuildDir.set(repoRoot.resolve("target/debug/build"))
+    signScriptFile.set(repoRoot.resolve("scripts/build/sign.sh"))
     platformId.set(resolvePlatformId(System.getProperty("os.name"), System.getProperty("os.arch")))
     outputBaseDir.set(layout.buildDirectory.dir("generated/native"))
 }
