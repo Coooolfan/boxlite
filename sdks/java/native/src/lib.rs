@@ -369,8 +369,11 @@ fn java_box_options_to_native(dto: JavaBoxOptions) -> BoxliteResult<BoxOptions> 
     options.env = dto.env.into_iter().collect();
     options.auto_remove = dto.auto_remove.unwrap_or(options.auto_remove);
     options.detach = dto.detach.unwrap_or(options.detach);
-    options.entrypoint = dto.entrypoint;
-    options.cmd = dto.cmd;
+    // Java defaults currently serialize empty lists for entrypoint/cmd.
+    // Treat empty vectors as "not set" so we don't override image config
+    // with an invalid empty entrypoint.
+    options.entrypoint = dto.entrypoint.filter(|value| !value.is_empty());
+    options.cmd = dto.cmd.filter(|value| !value.is_empty());
     options.user = dto.user;
     options.sanitize()?;
     Ok(options)
@@ -854,4 +857,70 @@ pub extern "system" fn Java_io_boxlite_loader_NativeBindings_nativeAbiVersion(
     _class: JClass<'_>,
 ) -> jint {
     ABI_VERSION
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{JavaBoxOptions, java_box_options_to_native};
+    use boxlite::RootfsSpec;
+    use std::collections::HashMap;
+
+    #[test]
+    fn java_empty_entrypoint_and_cmd_do_not_override_image_defaults() {
+        let options = java_box_options_to_native(JavaBoxOptions {
+            image: Some("alpine:latest".to_string()),
+            rootfs_path: None,
+            cpus: None,
+            memory_mib: None,
+            disk_size_gb: None,
+            working_dir: None,
+            env: HashMap::new(),
+            auto_remove: None,
+            detach: None,
+            entrypoint: Some(Vec::new()),
+            cmd: Some(Vec::new()),
+            user: None,
+        })
+        .expect("conversion should succeed");
+
+        assert!(
+            options.entrypoint.is_none(),
+            "empty Java entrypoint should map to None"
+        );
+        assert!(options.cmd.is_none(), "empty Java cmd should map to None");
+    }
+
+    #[test]
+    fn java_non_empty_entrypoint_and_cmd_are_preserved() {
+        let options = java_box_options_to_native(JavaBoxOptions {
+            image: Some("alpine:latest".to_string()),
+            rootfs_path: None,
+            cpus: None,
+            memory_mib: None,
+            disk_size_gb: None,
+            working_dir: None,
+            env: HashMap::new(),
+            auto_remove: None,
+            detach: None,
+            entrypoint: Some(vec!["/bin/sh".to_string()]),
+            cmd: Some(vec!["-lc".to_string(), "echo hi".to_string()]),
+            user: None,
+        })
+        .expect("conversion should succeed");
+
+        assert_eq!(
+            options.entrypoint,
+            Some(vec!["/bin/sh".to_string()]),
+            "non-empty Java entrypoint should be passed through"
+        );
+        assert_eq!(
+            options.cmd,
+            Some(vec!["-lc".to_string(), "echo hi".to_string()]),
+            "non-empty Java cmd should be passed through"
+        );
+        assert!(
+            matches!(options.rootfs, RootfsSpec::Image(_)),
+            "image input should still map to image rootfs"
+        );
+    }
 }
