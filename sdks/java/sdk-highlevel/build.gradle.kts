@@ -18,4 +18,9 @@ dependencies {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+    maxParallelForks = 1
+    forkEvery = 1
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
+    systemProperty("junit.jupiter.execution.parallel.enabled", "false")
+    systemProperty("junit.jupiter.execution.timeout.default", "5m")
 }

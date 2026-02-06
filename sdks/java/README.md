@@ -1,4 +1,4 @@
-# BoxLite Java SDK (Phase 2)
+# BoxLite Java SDK
 
 Java SDK for BoxLite using JNI to call Rust core directly.
 
@@ -6,7 +6,7 @@ Java SDK for BoxLite using JNI to call Rust core directly.
 
 - `sdk-core`: public Java API (`Boxlite`, `BoxliteRuntime`, `BoxHandle`, models)
 - `sdk-native-loader`: native library loading and ABI checks
-- `sdk-highlevel`: high-level API placeholder for next phases
+- `sdk-highlevel`: high-level wrappers (`SimpleBox` in current phase)
 - `samples/smoke`: local smoke app (runtime + create/get/list/remove/shutdown)
 - `native`: Rust JNI crate (`boxlite-java-native`)
 
@@ -16,6 +16,30 @@ Phase 2 adds execution APIs in `sdk-core`:
 - `ExecutionHandle.stdinWrite/stdinClose/stdoutNextLine/stderrNextLine/waitFor/kill/resizeTty`
 - `ExecResult`
 
+Current high-level API in `sdk-highlevel`:
+
+- `SimpleBox`
+- `SimpleBoxOptions`
+- `ExecOutput`
+
+Example:
+
+```java
+import io.boxlite.BoxOptions;
+import io.boxlite.highlevel.SimpleBox;
+import io.boxlite.highlevel.SimpleBoxOptions;
+
+try (SimpleBox box = new SimpleBox(
+        SimpleBoxOptions.builder()
+            .name("java-simplebox-demo")
+            .boxOptions(BoxOptions.defaults())
+            .build()
+    ).start()) {
+    var result = box.exec("sh", java.util.List.of("-lc", "echo hello"));
+    System.out.println(result.stdout());
+}
+```
+
 ## Local Commands
 
 From repository root:
@@ -23,7 +47,11 @@ From repository root:
 ```bash
 GRADLE_USER_HOME=.gradle-local ./sdks/java/gradlew -p sdks/java build
 GRADLE_USER_HOME=.gradle-local ./sdks/java/gradlew -p sdks/java :samples:smoke:run
+GRADLE_USER_HOME=.gradle-local ./sdks/java/gradlew -p sdks/java :samples:simplebox-basic:run
+GRADLE_USER_HOME=.gradle-local ./sdks/java/gradlew -p sdks/java :samples:simplebox-reuse:run
 ```
+
+Note: run sample apps one at a time. BoxLite enforces a lock per `BOXLITE_HOME` directory.
 
 Run full tests (unit + VM integration) locally:
 
