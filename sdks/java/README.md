@@ -6,7 +6,7 @@ Java SDK for BoxLite using JNI to call Rust core directly.
 
 - `sdk-core`: public Java API (`Boxlite`, `BoxliteRuntime`, `BoxHandle`, models)
 - `sdk-native-loader`: native library loading and ABI checks
-- `sdk-highlevel`: high-level wrappers (`SimpleBox` in current phase)
+- `sdk-highlevel`: high-level wrappers (`SimpleBox`, `CodeBox`)
 - `samples/smoke`: local smoke app (runtime + create/get/list/remove/shutdown)
 - `native`: Rust JNI crate (`boxlite-java-native`)
 
@@ -21,6 +21,8 @@ Current high-level API in `sdk-highlevel`:
 - `SimpleBox`
 - `SimpleBoxOptions`
 - `ExecOutput`
+- `CodeBox`
+- `CodeBoxOptions`
 
 Example:
 
@@ -40,6 +42,15 @@ try (SimpleBox box = new SimpleBox(
 }
 ```
 
+```java
+import io.boxlite.highlevel.CodeBox;
+
+try (CodeBox box = new CodeBox().start()) {
+    var result = box.run("print('hello-from-codebox')");
+    System.out.println(result.stdout());
+}
+```
+
 ## Local Commands
 
 From repository root:
@@ -49,6 +60,7 @@ GRADLE_USER_HOME=.gradle-local ./sdks/java/gradlew -p sdks/java build
 GRADLE_USER_HOME=.gradle-local ./sdks/java/gradlew -p sdks/java :samples:smoke:run
 GRADLE_USER_HOME=.gradle-local ./sdks/java/gradlew -p sdks/java :samples:simplebox-basic:run
 GRADLE_USER_HOME=.gradle-local ./sdks/java/gradlew -p sdks/java :samples:simplebox-reuse:run
+GRADLE_USER_HOME=.gradle-local ./sdks/java/gradlew -p sdks/java :samples:codebox-basic:run
 ```
 
 Note: run sample apps one at a time. BoxLite enforces a lock per `BOXLITE_HOME` directory.

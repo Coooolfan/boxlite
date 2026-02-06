@@ -15,7 +15,9 @@ import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeUnit;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -240,6 +242,36 @@ class BoxliteSmokeTest {
             exec.kill().join();
             ExecResult result = exec.waitFor().join();
             assertFalse(result.success(), "killed command should not succeed");
+
+            exec.close();
+            runtime.remove(box.id(), true).join();
+            box.close();
+        });
+    }
+
+    @Test
+    void execWaitAndKillCanRunConcurrently() throws Exception {
+        runVmTest("case-exec-wait-kill-concurrent", runtime -> {
+            BoxOptions options = BoxOptions.builder()
+                .autoRemove(false)
+                .build();
+            BoxHandle box = runtime.create(
+                options,
+                "java-phase2-exec-kill-concurrent-" + UUID.randomUUID()
+            ).join();
+            ExecutionHandle exec = box.exec(
+                ExecCommand.builder("sh")
+                    .addArg("-lc")
+                    .addArg("sleep 30")
+                    .build()
+            ).join();
+
+            CompletableFuture<ExecResult> waitFuture = exec.waitFor();
+            Thread.sleep(250);
+            exec.kill().join();
+
+            ExecResult result = waitFuture.orTimeout(10, TimeUnit.SECONDS).join();
+            assertFalse(result.success(), "concurrently killed command should not succeed");
 
             exec.close();
             runtime.remove(box.id(), true).join();

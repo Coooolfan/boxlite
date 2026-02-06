@@ -21,7 +21,7 @@ import java.util.concurrent.Executors;
  *
  * <p>The class owns box lifecycle and can optionally own runtime lifecycle.
  */
-public final class SimpleBox implements AutoCloseable {
+public class SimpleBox implements AutoCloseable {
     private static final ExecutorService READ_EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
 
     private final BoxliteRuntime runtime;

@@ -6,8 +6,8 @@ use std::time::Duration;
 
 use boxlite::{
     BoxCommand, BoxInfo, BoxOptions, BoxStatus, BoxliteError, BoxliteOptions, BoxliteResult,
-    BoxliteRuntime, CopyOptions, ExecResult, ExecStderr, ExecStdin, ExecStdout, Execution,
-    LiteBox, RootfsSpec,
+    BoxliteRuntime, CopyOptions, ExecResult, ExecStderr, ExecStdin, ExecStdout, Execution, LiteBox,
+    RootfsSpec,
 };
 use futures::StreamExt;
 use jni::JNIEnv;
@@ -236,9 +236,9 @@ fn lock_boxes() -> BoxliteResult<MutexGuard<'static, HashMap<i64, BoxHandleEntry
 }
 
 fn lock_executions() -> BoxliteResult<MutexGuard<'static, HashMap<i64, ExecutionHandleEntry>>> {
-    EXECUTIONS.lock().map_err(|e| {
-        BoxliteError::Internal(format!("execution handle table lock poisoned: {e}"))
-    })
+    EXECUTIONS
+        .lock()
+        .map_err(|e| BoxliteError::Internal(format!("execution handle table lock poisoned: {e}")))
 }
 
 fn insert_runtime_handle(runtime: BoxliteRuntime) -> BoxliteResult<i64> {
@@ -305,10 +305,7 @@ fn remove_box_handle(box_handle: jlong) -> BoxliteResult<()> {
     Ok(())
 }
 
-fn insert_execution_handle(
-    runtime_handle: i64,
-    mut execution: Execution,
-) -> BoxliteResult<i64> {
+fn insert_execution_handle(runtime_handle: i64, mut execution: Execution) -> BoxliteResult<i64> {
     let native_handle = allocate_handle();
     let id = execution.id().to_owned();
     let stdin = execution.stdin();
@@ -341,9 +338,7 @@ fn get_execution_entry(execution_handle: jlong) -> BoxliteResult<ExecutionHandle
         .get(&native_handle)
         .cloned()
         .ok_or_else(|| {
-            BoxliteError::InvalidState(format!(
-                "execution handle {execution_handle} is not active"
-            ))
+            BoxliteError::InvalidState(format!("execution handle {execution_handle} is not active"))
         })?;
 
     if !lock_runtimes()?.contains_key(&entry.runtime_handle) {
@@ -353,6 +348,13 @@ fn get_execution_entry(execution_handle: jlong) -> BoxliteResult<ExecutionHandle
     }
 
     Ok(entry)
+}
+
+fn clone_execution(entry: &ExecutionHandleEntry) -> Execution {
+    TOKIO.block_on(async {
+        let execution = entry.execution.lock().await;
+        execution.clone()
+    })
 }
 
 fn remove_execution_handle(execution_handle: jlong) -> BoxliteResult<()> {
@@ -1139,7 +1141,7 @@ pub extern "system" fn Java_io_boxlite_loader_NativeBindings_nativeExecutionWait
 ) -> jstring {
     let result: BoxliteResult<String> = (|| {
         let entry = get_execution_entry(execution_handle)?;
-        let mut execution = TOKIO.block_on(entry.execution.lock());
+        let mut execution = clone_execution(&entry);
         let result = TOKIO.block_on(execution.wait())?;
         serialize_json(&exec_result_to_java(result))
     })();
@@ -1161,7 +1163,7 @@ pub extern "system" fn Java_io_boxlite_loader_NativeBindings_nativeExecutionKill
 ) {
     let result: BoxliteResult<()> = (|| {
         let entry = get_execution_entry(execution_handle)?;
-        let mut execution = TOKIO.block_on(entry.execution.lock());
+        let mut execution = clone_execution(&entry);
         TOKIO.block_on(execution.kill())
     })();
 

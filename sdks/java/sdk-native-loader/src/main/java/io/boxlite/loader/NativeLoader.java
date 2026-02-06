@@ -62,22 +62,14 @@ public final class NativeLoader {
     }
 
     private static void loadInternal() {
-        String directPath = System.getenv(NATIVE_LIB_ENV);
-        if (directPath != null && !directPath.isBlank()) {
-            System.load(Path.of(directPath).toAbsolutePath().toString());
-            return;
-        }
-
         String platform = currentPlatformId();
-        String libraryFileName = System.mapLibraryName("boxlite_java_native");
-        String libraryResourcePath = "/native/" + platform + "/" + libraryFileName;
+        String directPath = System.getenv(NATIVE_LIB_ENV);
 
         try {
             Path tempDir = Files.createTempDirectory("boxlite-java-native-");
             tempDir.toFile().deleteOnExit();
 
-            Path extractedLibrary = tempDir.resolve(libraryFileName);
-            copyResource(libraryResourcePath, extractedLibrary);
+            Path extractedLibrary = stageNativeLibrary(tempDir, platform, directPath);
             extractedLibrary.toFile().deleteOnExit();
 
             extractShimBinary(tempDir, platform);
@@ -87,6 +79,39 @@ public final class NativeLoader {
         } catch (IOException e) {
             throw new BoxliteException("Failed to load native library for platform " + platform, e);
         }
+    }
+
+    static Path stageNativeLibrary(Path tempDir, String platform, String directPath) throws IOException {
+        if (directPath == null || directPath.isBlank()) {
+            return extractBundledNativeLibrary(tempDir, platform);
+        }
+        return copyOverrideNativeLibrary(tempDir, directPath);
+    }
+
+    private static Path extractBundledNativeLibrary(Path tempDir, String platform) throws IOException {
+        String libraryFileName = System.mapLibraryName("boxlite_java_native");
+        String libraryResourcePath = "/native/" + platform + "/" + libraryFileName;
+        Path extractedLibrary = tempDir.resolve(libraryFileName);
+        copyResource(libraryResourcePath, extractedLibrary);
+        return extractedLibrary;
+    }
+
+    private static Path copyOverrideNativeLibrary(Path tempDir, String directPath) throws IOException {
+        Path overrideLibrary = Path.of(directPath).toAbsolutePath().normalize();
+        if (!Files.isRegularFile(overrideLibrary)) {
+            throw new BoxliteException(
+                "Native library override does not exist or is not a file: " + overrideLibrary
+            );
+        }
+
+        Path fileName = overrideLibrary.getFileName();
+        if (fileName == null) {
+            throw new BoxliteException("Native library override path has no file name: " + overrideLibrary);
+        }
+
+        Path stagedLibrary = tempDir.resolve(fileName.toString());
+        Files.copy(overrideLibrary, stagedLibrary, StandardCopyOption.REPLACE_EXISTING);
+        return stagedLibrary;
     }
 
     private static void extractShimBinary(Path tempDir, String platform) throws IOException {
