@@ -211,7 +211,7 @@ fn runtime_handle_from_jlong(handle: jlong) -> BoxliteResult<i64> {
             "runtime handle must be positive, got {handle}"
         )));
     }
-    Ok(handle as i64)
+    Ok(handle)
 }
 
 fn box_handle_from_jlong(handle: jlong) -> BoxliteResult<i64> {
@@ -220,7 +220,7 @@ fn box_handle_from_jlong(handle: jlong) -> BoxliteResult<i64> {
             "box handle must be positive, got {handle}"
         )));
     }
-    Ok(handle as i64)
+    Ok(handle)
 }
 
 fn lock_runtimes() -> BoxliteResult<MutexGuard<'static, HashMap<i64, Arc<BoxliteRuntime>>>> {
@@ -329,7 +329,7 @@ fn execution_handle_from_jlong(handle: jlong) -> BoxliteResult<i64> {
             "execution handle must be positive, got {handle}"
         )));
     }
-    Ok(handle as i64)
+    Ok(handle)
 }
 
 fn get_execution_entry(execution_handle: jlong) -> BoxliteResult<ExecutionHandleEntry> {
@@ -577,12 +577,11 @@ fn to_jlong_array(env: &mut JNIEnv<'_>, values: &[jlong]) -> jlongArray {
 }
 
 fn get_default_runtime_clone() -> BoxliteResult<BoxliteRuntime> {
-    if BoxliteRuntime::try_default_runtime().is_none() {
-        if let Err(err) = BoxliteRuntime::init_default_runtime(BoxliteOptions::default()) {
-            if BoxliteRuntime::try_default_runtime().is_none() {
-                return Err(err);
-            }
-        }
+    if BoxliteRuntime::try_default_runtime().is_none()
+        && let Err(err) = BoxliteRuntime::init_default_runtime(BoxliteOptions::default())
+        && BoxliteRuntime::try_default_runtime().is_none()
+    {
+        return Err(err);
     }
 
     if BoxliteRuntime::try_default_runtime().is_none() {
