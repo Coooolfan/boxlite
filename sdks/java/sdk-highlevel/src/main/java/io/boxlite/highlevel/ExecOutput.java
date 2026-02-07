@@ -14,22 +14,47 @@ public final class ExecOutput {
         this.errorMessage = errorMessage;
     }
 
+    /**
+     * Returns process exit code.
+     *
+     * @return exit code
+     */
     public int exitCode() {
         return exitCode;
     }
 
+    /**
+     * Returns captured stdout.
+     *
+     * @return stdout text
+     */
     public String stdout() {
         return stdout;
     }
 
+    /**
+     * Returns captured stderr.
+     *
+     * @return stderr text
+     */
     public String stderr() {
         return stderr;
     }
 
+    /**
+     * Returns optional runtime/native error message.
+     *
+     * @return error message, or {@code null}
+     */
     public String errorMessage() {
         return errorMessage;
     }
 
+    /**
+     * Returns whether command exited successfully.
+     *
+     * @return {@code true} when exit code is zero
+     */
     public boolean success() {
         return exitCode == 0;
     }

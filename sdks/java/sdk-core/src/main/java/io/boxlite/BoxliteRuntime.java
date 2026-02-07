@@ -24,26 +24,56 @@ public final class BoxliteRuntime implements AutoCloseable {
         this.cleanable = CLEANER.register(this, state);
     }
 
+    /**
+     * Creates an independent runtime with default options.
+     *
+     * @return a new runtime handle
+     */
     public static BoxliteRuntime create() {
         return create(Options.defaults());
     }
 
+    /**
+     * Creates an independent runtime with custom options.
+     *
+     * @param options runtime configuration; {@code null} means {@link Options#defaults()}
+     * @return a new runtime handle
+     */
     public static BoxliteRuntime create(Options options) {
         Options resolvedOptions = options == null ? Options.defaults() : options;
         long handle = NativeBindings.runtimeNew(JsonSupport.write(toRuntimePayload(resolvedOptions)));
         return fromNativeHandle(handle, "runtimeNew");
     }
 
+    /**
+     * Returns a handle to the process-global default runtime.
+     *
+     * @return default runtime handle
+     */
     public static BoxliteRuntime defaultRuntime() {
         long handle = NativeBindings.runtimeDefault();
         return fromNativeHandle(handle, "runtimeDefault");
     }
 
+    /**
+     * Initializes the process-global default runtime.
+     *
+     * <p>Call this before the first {@link #defaultRuntime()} to override defaults.
+     *
+     * @param options runtime configuration; {@code null} means {@link Options#defaults()}
+     */
     public static void initDefaultRuntime(Options options) {
         Options resolvedOptions = options == null ? Options.defaults() : options;
         NativeBindings.runtimeInitDefault(JsonSupport.write(toRuntimePayload(resolvedOptions)));
     }
 
+    /**
+     * Creates a box.
+     *
+     * @param options box options; {@code null} means {@link BoxOptions#defaults()}
+     * @param name optional box name; may be {@code null}
+     * @return async handle for the created box
+     */
     public CompletableFuture<BoxHandle> create(BoxOptions options, String name) {
         BoxOptions resolvedOptions = options == null ? BoxOptions.defaults() : options;
         return async(() -> {
@@ -57,10 +87,23 @@ public final class BoxliteRuntime implements AutoCloseable {
         });
     }
 
+    /**
+     * Creates a box without an explicit name.
+     *
+     * @param options box options; {@code null} means {@link BoxOptions#defaults()}
+     * @return async handle for the created box
+     */
     public CompletableFuture<BoxHandle> create(BoxOptions options) {
         return create(options, null);
     }
 
+    /**
+     * Looks up a box by name and creates one when absent.
+     *
+     * @param options box options used when creation is needed
+     * @param name box name used as lookup key; may be {@code null}
+     * @return async result containing box handle and created flag
+     */
     public CompletableFuture<GetOrCreateResult> getOrCreate(BoxOptions options, String name) {
         BoxOptions resolvedOptions = options == null ? BoxOptions.defaults() : options;
         return async(() -> {
@@ -81,10 +124,22 @@ public final class BoxliteRuntime implements AutoCloseable {
         });
     }
 
+    /**
+     * Creates or gets an unnamed box.
+     *
+     * @param options box options used when creation is needed
+     * @return async result containing box handle and created flag
+     */
     public CompletableFuture<GetOrCreateResult> getOrCreate(BoxOptions options) {
         return getOrCreate(options, null);
     }
 
+    /**
+     * Gets a box handle by id or name.
+     *
+     * @param idOrName box id or box name
+     * @return async optional handle; empty when not found
+     */
     public CompletableFuture<Optional<BoxHandle>> get(String idOrName) {
         requireIdOrName(idOrName);
         return async(() -> {
@@ -96,6 +151,12 @@ public final class BoxliteRuntime implements AutoCloseable {
         });
     }
 
+    /**
+     * Gets box metadata by id or name.
+     *
+     * @param idOrName box id or box name
+     * @return async optional metadata; empty when not found
+     */
     public CompletableFuture<Optional<BoxInfo>> getInfo(String idOrName) {
         requireIdOrName(idOrName);
         return async(() -> {
@@ -107,6 +168,11 @@ public final class BoxliteRuntime implements AutoCloseable {
         });
     }
 
+    /**
+     * Lists metadata for all known boxes.
+     *
+     * @return async list of boxes
+     */
     public CompletableFuture<List<BoxInfo>> listInfo() {
         return async(() -> {
             String json = NativeBindings.runtimeListInfo(requireNativeHandle());
@@ -114,6 +180,13 @@ public final class BoxliteRuntime implements AutoCloseable {
         });
     }
 
+    /**
+     * Removes a box by id or name.
+     *
+     * @param idOrName box id or box name
+     * @param force force removal for running box
+     * @return async completion
+     */
     public CompletableFuture<Void> remove(String idOrName, boolean force) {
         requireIdOrName(idOrName);
         return async(() -> {
@@ -122,10 +195,21 @@ public final class BoxliteRuntime implements AutoCloseable {
         });
     }
 
+    /**
+     * Removes a box by id or name without forcing.
+     *
+     * @param idOrName box id or box name
+     * @return async completion
+     */
     public CompletableFuture<Void> remove(String idOrName) {
         return remove(idOrName, false);
     }
 
+    /**
+     * Reads runtime metrics.
+     *
+     * @return async metrics snapshot
+     */
     public CompletableFuture<RuntimeMetrics> metrics() {
         return async(() -> {
             String json = NativeBindings.runtimeMetrics(requireNativeHandle());
@@ -133,6 +217,12 @@ public final class BoxliteRuntime implements AutoCloseable {
         });
     }
 
+    /**
+     * Shuts down the runtime.
+     *
+     * @param timeoutSeconds optional graceful timeout in seconds; {@code null} uses default
+     * @return async completion
+     */
     public CompletableFuture<Void> shutdown(Integer timeoutSeconds) {
         return async(() -> {
             NativeBindings.runtimeShutdown(requireNativeHandle(), timeoutSeconds);
@@ -140,6 +230,7 @@ public final class BoxliteRuntime implements AutoCloseable {
         });
     }
 
+    /** Releases the native runtime handle. Safe to call multiple times. */
     @Override
     public void close() {
         cleanable.clean();

@@ -25,20 +25,40 @@ public final class BoxHandle implements AutoCloseable {
         this.cleanable = CLEANER.register(this, state);
     }
 
+    /**
+     * Returns immutable box id.
+     *
+     * @return box id
+     */
     public String id() {
         return id;
     }
 
+    /**
+     * Returns optional box name.
+     *
+     * @return name when present
+     */
     public Optional<String> name() {
         return name;
     }
 
+    /**
+     * Fetches current box metadata.
+     *
+     * @return current box info
+     */
     public BoxInfo info() {
         runtime.requireNativeHandle();
         String json = NativeBindings.boxInfo(state.requireNativeHandle());
         return JsonSupport.read(json, BoxInfo.class);
     }
 
+    /**
+     * Starts the box.
+     *
+     * @return async completion
+     */
     public CompletableFuture<Void> start() {
         return runtime.async(() -> {
             runtime.requireNativeHandle();
@@ -47,6 +67,11 @@ public final class BoxHandle implements AutoCloseable {
         });
     }
 
+    /**
+     * Stops the box.
+     *
+     * @return async completion
+     */
     public CompletableFuture<Void> stop() {
         return runtime.async(() -> {
             runtime.requireNativeHandle();
@@ -55,6 +80,12 @@ public final class BoxHandle implements AutoCloseable {
         });
     }
 
+    /**
+     * Executes a command inside the box.
+     *
+     * @param command execution options
+     * @return async execution handle
+     */
     public CompletableFuture<ExecutionHandle> exec(ExecCommand command) {
         return runtime.async(() -> {
             runtime.requireNativeHandle();
@@ -73,6 +104,14 @@ public final class BoxHandle implements AutoCloseable {
         });
     }
 
+    /**
+     * Copies host content into the box.
+     *
+     * @param hostPath source path on host
+     * @param containerDest destination path in box
+     * @param options copy behavior; {@code null} means {@link CopyOptions#defaults()}
+     * @return async completion
+     */
     public CompletableFuture<Void> copyIn(Path hostPath, String containerDest, CopyOptions options) {
         return runtime.async(() -> {
             runtime.requireNativeHandle();
@@ -94,6 +133,14 @@ public final class BoxHandle implements AutoCloseable {
         });
     }
 
+    /**
+     * Copies content from box to host.
+     *
+     * @param containerSrc source path in box
+     * @param hostDest destination path on host
+     * @param options copy behavior; {@code null} means {@link CopyOptions#defaults()}
+     * @return async completion
+     */
     public CompletableFuture<Void> copyOut(String containerSrc, Path hostDest, CopyOptions options) {
         return runtime.async(() -> {
             runtime.requireNativeHandle();
@@ -115,6 +162,7 @@ public final class BoxHandle implements AutoCloseable {
         });
     }
 
+    /** Releases the native box handle. Safe to call multiple times. */
     @Override
     public void close() {
         cleanable.clean();

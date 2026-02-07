@@ -106,6 +106,7 @@ GRADLE_USER_HOME=.gradle-local ./sdks/java/gradlew -p sdks/java fatJarAllPlatfor
 
 Output:
 - `sdks/java/sdk-highlevel/build/libs/boxlite-java-highlevel-allplatforms-<version>.jar`
+- `sdks/java/sdk-highlevel/build/libs/boxlite-java-highlevel-allplatforms-<version>-sources.jar`
 
 Default behavior is non-strict for local development:
 - Missing or incomplete platform bundles are skipped

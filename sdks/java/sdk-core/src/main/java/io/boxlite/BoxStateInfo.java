@@ -10,6 +10,13 @@ public final class BoxStateInfo {
     private final boolean running;
     private final Integer pid;
 
+    /**
+     * Deserializable box state model.
+     *
+     * @param status status text
+     * @param running whether box is currently running
+     * @param pid optional process id
+     */
     @JsonCreator
     public BoxStateInfo(
         @JsonProperty("status") String status,
@@ -21,14 +28,29 @@ public final class BoxStateInfo {
         this.pid = pid;
     }
 
+    /**
+     * Returns status text.
+     *
+     * @return state label
+     */
     public String status() {
         return status;
     }
 
+    /**
+     * Returns whether box is running.
+     *
+     * @return running flag
+     */
     public boolean running() {
         return running;
     }
 
+    /**
+     * Returns box process id.
+     *
+     * @return pid when available, otherwise {@code null}
+     */
     public Integer pid() {
         return pid;
     }

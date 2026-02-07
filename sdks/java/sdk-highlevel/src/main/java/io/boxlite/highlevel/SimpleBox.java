@@ -32,6 +32,11 @@ public class SimpleBox implements AutoCloseable {
     private volatile Boolean created;
     private volatile boolean closed;
 
+    /**
+     * Creates a high-level box wrapper.
+     *
+     * @param options simple-box options
+     */
     public SimpleBox(SimpleBoxOptions options) {
         if (options == null) {
             throw new ConfigException("options must not be null");
@@ -46,6 +51,11 @@ public class SimpleBox implements AutoCloseable {
         }
     }
 
+    /**
+     * Starts the box if it is not already started.
+     *
+     * @return this instance
+     */
     public synchronized SimpleBox start() {
         ensureOpen();
         if (box != null) {
@@ -64,22 +74,51 @@ public class SimpleBox implements AutoCloseable {
         return this;
     }
 
+    /**
+     * Returns current box id.
+     *
+     * @return box id
+     */
     public String id() {
         return requireStarted().id();
     }
 
+    /**
+     * Indicates whether current box was newly created.
+     *
+     * @return empty before {@link #start()}, otherwise created flag
+     */
     public Optional<Boolean> created() {
         return Optional.ofNullable(created);
     }
 
+    /**
+     * Returns underlying low-level handle.
+     *
+     * @return low-level {@link BoxHandle}
+     */
     public BoxHandle rawBox() {
         return requireStarted();
     }
 
+    /**
+     * Executes a command without arguments or extra environment.
+     *
+     * @param command command executable
+     * @return aggregated execution output
+     */
     public ExecOutput exec(String command) {
         return exec(command, List.of(), Map.of());
     }
 
+    /**
+     * Executes a command and collects full stdout/stderr output.
+     *
+     * @param command command executable
+     * @param args command arguments
+     * @param env environment variables
+     * @return aggregated execution output
+     */
     public ExecOutput exec(String command, List<String> args, Map<String, String> env) {
         BoxHandle currentBox = requireStarted();
         if (command == null || command.isBlank()) {
@@ -112,6 +151,7 @@ public class SimpleBox implements AutoCloseable {
         }
     }
 
+    /** Closes wrapper, underlying handles, and optionally removes the box. */
     @Override
     public synchronized void close() {
         if (closed) {

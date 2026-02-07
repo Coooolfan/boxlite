@@ -16,6 +16,17 @@ public final class BoxInfo {
     private final int cpus;
     private final int memoryMib;
 
+    /**
+     * Deserializable box metadata model.
+     *
+     * @param id box id
+     * @param name optional box name
+     * @param state runtime state snapshot
+     * @param createdAt RFC-3339 creation timestamp
+     * @param image image used by the box
+     * @param cpus configured CPU count
+     * @param memoryMib configured memory in MiB
+     */
     @JsonCreator
     public BoxInfo(
         @JsonProperty("id") String id,
@@ -35,30 +46,65 @@ public final class BoxInfo {
         this.memoryMib = memoryMib;
     }
 
+    /**
+     * Returns box id.
+     *
+     * @return box id
+     */
     public String id() {
         return id;
     }
 
+    /**
+     * Returns box name.
+     *
+     * @return box name, or {@code null}
+     */
     public String name() {
         return name;
     }
 
+    /**
+     * Returns box state.
+     *
+     * @return state snapshot
+     */
     public BoxStateInfo state() {
         return state;
     }
 
+    /**
+     * Returns creation time.
+     *
+     * @return creation timestamp
+     */
     public Instant createdAt() {
         return createdAt;
     }
 
+    /**
+     * Returns image reference.
+     *
+     * @return OCI image reference
+     */
     public String image() {
         return image;
     }
 
+    /**
+     * Returns configured CPU count.
+     *
+     * @return CPU count
+     */
     public int cpus() {
         return cpus;
     }
 
+    /**
+     * Returns configured memory in MiB.
+     *
+     * @return memory in MiB
+     */
     public int memoryMib() {
         return memoryMib;
     }

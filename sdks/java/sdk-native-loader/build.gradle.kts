@@ -12,6 +12,7 @@ import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import org.gradle.language.jvm.tasks.ProcessResources
 
 plugins {
     `java-library`
@@ -324,6 +325,11 @@ val configuredSyncNativeFromSource = parseBooleanProperty(
 )
 val nativeBundleOutputDir = layout.buildDirectory.dir("generated/native-bundles")
 val nativeBundleReportOutputFile = layout.buildDirectory.file("reports/native-bundles-report.txt")
+val selectedNativeResourcesDir = if (configuredSyncNativeFromSource) {
+    layout.buildDirectory.dir("generated/native")
+} else {
+    nativeBundleOutputDir
+}
 
 val cargoBuildNativeDebug = tasks.register<Exec>("cargoBuildNativeDebug") {
     workingDir = repoRoot
@@ -424,17 +430,11 @@ val syncNativeResourcesFromBundles = tasks.register("syncNativeResourcesFromBund
     }
 }
 
-sourceSets {
-    named("main") {
-        if (configuredSyncNativeFromSource) {
-            resources.srcDir(layout.buildDirectory.dir("generated/native"))
-        } else {
-            resources.srcDir(nativeBundleOutputDir)
-        }
+tasks.named<ProcessResources>("processResources") {
+    from(selectedNativeResourcesDir) {
+        include("native/**")
     }
-}
 
-tasks.named("processResources") {
     if (configuredSyncNativeFromSource) {
         dependsOn(syncNativeResources)
     } else {

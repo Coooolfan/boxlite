@@ -22,10 +22,21 @@ public final class ExecutionHandle implements AutoCloseable {
         this.cleanable = CLEANER.register(this, state);
     }
 
+    /**
+     * Returns execution id.
+     *
+     * @return execution id
+     */
     public String id() {
         return id;
     }
 
+    /**
+     * Writes bytes to process stdin.
+     *
+     * @param data bytes to write
+     * @return async completion
+     */
     public CompletableFuture<Void> stdinWrite(byte[] data) {
         return runtime.async(() -> {
             runtime.requireNativeHandle();
@@ -37,6 +48,11 @@ public final class ExecutionHandle implements AutoCloseable {
         });
     }
 
+    /**
+     * Closes process stdin.
+     *
+     * @return async completion
+     */
     public CompletableFuture<Void> stdinClose() {
         return runtime.async(() -> {
             runtime.requireNativeHandle();
@@ -45,6 +61,11 @@ public final class ExecutionHandle implements AutoCloseable {
         });
     }
 
+    /**
+     * Reads the next line from stdout.
+     *
+     * @return async optional line; empty on stream end
+     */
     public CompletableFuture<Optional<String>> stdoutNextLine() {
         return runtime.async(() -> {
             runtime.requireNativeHandle();
@@ -53,6 +74,11 @@ public final class ExecutionHandle implements AutoCloseable {
         });
     }
 
+    /**
+     * Reads the next line from stderr.
+     *
+     * @return async optional line; empty on stream end
+     */
     public CompletableFuture<Optional<String>> stderrNextLine() {
         return runtime.async(() -> {
             runtime.requireNativeHandle();
@@ -61,6 +87,11 @@ public final class ExecutionHandle implements AutoCloseable {
         });
     }
 
+    /**
+     * Waits for process termination.
+     *
+     * @return async execution result
+     */
     public CompletableFuture<ExecResult> waitFor() {
         return runtime.async(() -> {
             runtime.requireNativeHandle();
@@ -69,6 +100,11 @@ public final class ExecutionHandle implements AutoCloseable {
         });
     }
 
+    /**
+     * Kills the running process.
+     *
+     * @return async completion
+     */
     public CompletableFuture<Void> kill() {
         return runtime.async(() -> {
             runtime.requireNativeHandle();
@@ -77,6 +113,13 @@ public final class ExecutionHandle implements AutoCloseable {
         });
     }
 
+    /**
+     * Resizes TTY when command is running in tty mode.
+     *
+     * @param rows terminal rows, must be {@code > 0}
+     * @param cols terminal columns, must be {@code > 0}
+     * @return async completion
+     */
     public CompletableFuture<Void> resizeTty(int rows, int cols) {
         return runtime.async(() -> {
             runtime.requireNativeHandle();
@@ -88,6 +131,7 @@ public final class ExecutionHandle implements AutoCloseable {
         });
     }
 
+    /** Releases the native execution handle. Safe to call multiple times. */
     @Override
     public void close() {
         cleanable.clean();
