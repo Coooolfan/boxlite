@@ -82,6 +82,45 @@ In restricted environments, keep using a writable Gradle cache path:
 GRADLE_USER_HOME=.gradle-local ./sdks/java/gradlew -p sdks/java test
 ```
 
+## Multi-platform Fat Jar (local)
+
+Build a single `sdk-highlevel` fat Jar with bundled native resources for:
+- `darwin-aarch64`
+- `linux-x86_64`
+- `linux-aarch64`
+
+Default native bundle input directory:
+- `sdks/java/dist/native/<platform>/`
+
+Each platform directory should include:
+- `libboxlite_java_native.dylib` (macOS) or `libboxlite_java_native.so` (Linux)
+- `boxlite-shim`
+- `boxlite-guest`
+- `runtime/` (runtime helper files; `index.txt` is generated during packaging)
+
+Build fat Jar:
+
+```bash
+GRADLE_USER_HOME=.gradle-local ./sdks/java/gradlew -p sdks/java fatJarAllPlatforms
+```
+
+Output:
+- `sdks/java/sdk-highlevel/build/libs/boxlite-java-highlevel-allplatforms-<version>.jar`
+
+Default behavior is non-strict for local development:
+- Missing or incomplete platform bundles are skipped
+- A report is written to `sdks/java/sdk-native-loader/build/reports/native-bundles-report.txt`
+
+Strict mode (recommended for CI):
+
+```bash
+GRADLE_USER_HOME=.gradle-local ./sdks/java/gradlew -p sdks/java fatJarAllPlatforms -Pboxlite.strictNativePlatforms=true
+```
+
+Optional properties:
+- `-Pboxlite.nativeBundlesDir=<path>` (default: `dist/native`, relative to `sdks/java/`)
+- `-Pboxlite.nativePlatforms=darwin-aarch64,linux-x86_64,linux-aarch64`
+
 ## Native Override
 
 For local debugging, you can force the loader to use an explicit native library path:

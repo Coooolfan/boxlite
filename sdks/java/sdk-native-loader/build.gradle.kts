@@ -129,6 +129,133 @@ abstract class SyncNativeResourcesTask : DefaultTask() {
     }
 }
 
+fun expectedNativeLibraryName(platformId: String): String =
+    when {
+        platformId.startsWith("darwin-") -> "libboxlite_java_native.dylib"
+        platformId.startsWith("linux-") -> "libboxlite_java_native.so"
+        else -> throw GradleException("Unsupported native bundle platform: $platformId")
+    }
+
+fun parseBooleanProperty(propertyName: String, configuredValue: String?): Boolean {
+    if (configuredValue == null) {
+        return false
+    }
+
+    return when (configuredValue.trim().lowercase()) {
+        "true", "1", "yes", "on" -> true
+        "false", "0", "no", "off", "" -> false
+        else -> throw GradleException(
+            "Invalid boolean for -P$propertyName: '$configuredValue' (expected true/false)",
+        )
+    }
+}
+
+fun resolvePathFromRoot(rootDir: File, configuredPath: String): File {
+    val pathFile = File(configuredPath)
+    return if (pathFile.isAbsolute) {
+        pathFile
+    } else {
+        rootDir.resolve(configuredPath)
+    }
+}
+
+fun syncPlatformBundleFromDirectory(
+    bundlesRoot: File,
+    platform: String,
+    nativeOutputRoot: File,
+): String? {
+    val sourcePlatformDir = bundlesRoot.resolve(platform)
+    if (!sourcePlatformDir.isDirectory) {
+        return "$platform: platform directory missing at ${sourcePlatformDir.path}"
+    }
+
+    val expectedLibraryName = expectedNativeLibraryName(platform)
+    val requiredEntries = listOf(expectedLibraryName, "boxlite-shim", "boxlite-guest", "runtime")
+    val missingEntries = requiredEntries.filter { entry ->
+        !sourcePlatformDir.resolve(entry).exists()
+    }
+    if (missingEntries.isNotEmpty()) {
+        return "$platform: missing required entries ${missingEntries.joinToString(", ")}"
+    }
+
+    val runtimeSourceDir = sourcePlatformDir.resolve("runtime")
+    val runtimeSourceFiles = runtimeSourceDir.listFiles()
+        ?.filter { it.isFile && it.name != "index.txt" }
+        ?.sortedBy { it.name }
+        .orEmpty()
+    if (runtimeSourceFiles.isEmpty()) {
+        return "$platform: runtime directory has no files under ${runtimeSourceDir.path}"
+    }
+
+    val targetPlatformDir = nativeOutputRoot.resolve(platform)
+    if (targetPlatformDir.exists()) {
+        targetPlatformDir.deleteRecursively()
+    }
+    targetPlatformDir.mkdirs()
+
+    sourcePlatformDir.resolve(expectedLibraryName)
+        .copyTo(targetPlatformDir.resolve(expectedLibraryName), overwrite = true)
+
+    copyExecutableFile(
+        source = sourcePlatformDir.resolve("boxlite-shim"),
+        destination = targetPlatformDir.resolve("boxlite-shim"),
+        fileLabel = "shim binary",
+    )
+    copyExecutableFile(
+        source = sourcePlatformDir.resolve("boxlite-guest"),
+        destination = targetPlatformDir.resolve("boxlite-guest"),
+        fileLabel = "guest binary",
+    )
+
+    val runtimeTargetDir = targetPlatformDir.resolve("runtime")
+    runtimeTargetDir.mkdirs()
+    runtimeSourceFiles.forEach { runtimeFile ->
+        runtimeFile.copyTo(runtimeTargetDir.resolve(runtimeFile.name), overwrite = true)
+    }
+
+    val runtimeIndex = runtimeTargetDir.resolve("index.txt")
+    runtimeIndex.writeText(
+        runtimeSourceFiles.joinToString(
+            separator = "\n",
+            postfix = if (runtimeSourceFiles.isEmpty()) "" else "\n",
+        ) { it.name },
+        StandardCharsets.UTF_8,
+    )
+
+    return null
+}
+
+fun copyExecutableFile(source: File, destination: File, fileLabel: String) {
+    source.copyTo(destination, overwrite = true)
+    if (!destination.setExecutable(true, false)) {
+        throw GradleException("Failed to mark $fileLabel as executable: ${destination.path}")
+    }
+}
+
+fun buildBundleReport(
+    bundlesRoot: File,
+    strictModeEnabled: Boolean,
+    configuredPlatforms: List<String>,
+    includedPlatforms: List<String>,
+    issues: List<String>,
+): String {
+    val lines = mutableListOf<String>()
+    lines += "nativeBundlesDir=${bundlesRoot.path}"
+    lines += "strictMode=$strictModeEnabled"
+    lines += "requestedPlatforms=${configuredPlatforms.joinToString(",")}"
+    lines += "includedPlatforms=${includedPlatforms.joinToString(",")}"
+
+    if (issues.isEmpty()) {
+        lines += "status=ok"
+    } else {
+        lines += "status=missing_or_incomplete"
+        lines += "issues:"
+        issues.forEach { issue -> lines += "- $issue" }
+    }
+
+    return lines.joinToString(separator = "\n", postfix = "\n")
+}
+
 fun resolvePlatformId(osName: String, archName: String): String {
     val os = osName.lowercase()
     val archRaw = archName.lowercase()
@@ -171,6 +298,27 @@ val guestTarget = resolveGuestTarget(System.getProperty("os.arch"))
 val nativeLibraryOutputFile = repoRoot.resolve("target/debug/$nativeLibraryName")
 val guestBinaryOutputFile = repoRoot.resolve("target/$guestTarget/debug/boxlite-guest")
 val shimBinaryOutputFile = repoRoot.resolve("target/debug/boxlite-shim")
+val defaultNativeBundlePlatforms = listOf("darwin-aarch64", "linux-x86_64", "linux-aarch64")
+val configuredNativeBundlesDir = resolvePathFromRoot(
+    rootDir = rootProject.projectDir,
+    configuredPath = providers.gradleProperty("boxlite.nativeBundlesDir").orNull ?: "dist/native",
+)
+val configuredNativePlatforms = (
+    providers.gradleProperty("boxlite.nativePlatforms").orNull
+        ?: defaultNativeBundlePlatforms.joinToString(",")
+    ).split(",")
+    .map(String::trim)
+    .filter(String::isNotEmpty)
+    .distinct()
+if (configuredNativePlatforms.isEmpty()) {
+    throw GradleException("No platforms configured for -Pboxlite.nativePlatforms")
+}
+val configuredStrictNativePlatforms = parseBooleanProperty(
+    propertyName = "boxlite.strictNativePlatforms",
+    configuredValue = providers.gradleProperty("boxlite.strictNativePlatforms").orNull,
+)
+val nativeBundleOutputDir = layout.buildDirectory.dir("generated/native-bundles")
+val nativeBundleReportOutputFile = layout.buildDirectory.file("reports/native-bundles-report.txt")
 
 val cargoBuildNativeDebug = tasks.register<Exec>("cargoBuildNativeDebug") {
     workingDir = repoRoot
@@ -202,6 +350,73 @@ val syncNativeResources = tasks.register<SyncNativeResourcesTask>("syncNativeRes
     signScriptFile.set(repoRoot.resolve("scripts/build/sign.sh"))
     platformId.set(resolvePlatformId(System.getProperty("os.name"), System.getProperty("os.arch")))
     outputBaseDir.set(layout.buildDirectory.dir("generated/native"))
+}
+
+val syncNativeResourcesFromBundles = tasks.register("syncNativeResourcesFromBundles") {
+    notCompatibleWithConfigurationCache(
+        "Bundle sync task currently uses script-level helper state.",
+    )
+
+    if (configuredNativeBundlesDir.exists()) {
+        inputs.dir(configuredNativeBundlesDir)
+            .withPathSensitivity(PathSensitivity.RELATIVE)
+    } else {
+        inputs.property("nativeBundlesDirMissing", configuredNativeBundlesDir.path)
+    }
+    inputs.property("targetPlatforms", configuredNativePlatforms)
+    inputs.property("strictMode", configuredStrictNativePlatforms)
+    outputs.dir(nativeBundleOutputDir)
+    outputs.file(nativeBundleReportOutputFile)
+
+    doLast {
+        val outputRoot = nativeBundleOutputDir.get().asFile
+        if (outputRoot.exists()) {
+            outputRoot.deleteRecursively()
+        }
+
+        val nativeOutputRoot = outputRoot.resolve("native")
+        nativeOutputRoot.mkdirs()
+
+        val includedPlatforms = mutableListOf<String>()
+        val issues = mutableListOf<String>()
+        if (!configuredNativeBundlesDir.isDirectory) {
+            configuredNativePlatforms.forEach { platform ->
+                issues += "$platform: bundle root missing at ${configuredNativeBundlesDir.path}"
+            }
+        } else {
+            configuredNativePlatforms.forEach { platform ->
+                val issue = syncPlatformBundleFromDirectory(
+                    bundlesRoot = configuredNativeBundlesDir,
+                    platform = platform,
+                    nativeOutputRoot = nativeOutputRoot,
+                )
+                if (issue == null) {
+                    includedPlatforms += platform
+                } else {
+                    issues += issue
+                }
+            }
+        }
+
+        val report = nativeBundleReportOutputFile.get().asFile
+        report.parentFile.mkdirs()
+        report.writeText(
+            buildBundleReport(
+                bundlesRoot = configuredNativeBundlesDir,
+                strictModeEnabled = configuredStrictNativePlatforms,
+                configuredPlatforms = configuredNativePlatforms,
+                includedPlatforms = includedPlatforms,
+                issues = issues,
+            ),
+            StandardCharsets.UTF_8,
+        )
+
+        if (configuredStrictNativePlatforms && issues.isNotEmpty()) {
+            throw GradleException(
+                "Native bundle validation failed in strict mode. See report: ${report.path}",
+            )
+        }
+    }
 }
 
 sourceSets {

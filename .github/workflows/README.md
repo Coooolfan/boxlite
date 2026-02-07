@@ -12,16 +12,16 @@ This directory contains GitHub Actions workflows for building and publishing Box
                                 │
         ┌───────────────────────┼───────────────────────┐
         ↓                       ↓                       ↓
-┌───────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│build-runtime  │     │build-wheels     │     │build-node       │
+┌───────────────┐     ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│build-runtime  │     │build-wheels     │     │build-node       │     │build-java       │
 │               │     │                 │     │                 │
 │ Triggers:     │     │ Triggers:       │     │ Triggers:       │
-│ - boxlite/*   │────→│ - release       │     │ - release       │
+│ - boxlite/*   │────→│ - release       │     │ - release       │     │ - release       │
 │ - Cargo.*     │     │ - manual        │     │ - manual        │
 │               │     │                 │     │                 │
 │ Saves to:     │     │ Restores from:  │     │ Restores from:  │
-│ actions/cache │     │ actions/cache   │     │ actions/cache   │
-└───────────────┘     └─────────────────┘     └─────────────────┘
+│ actions/cache │     │ actions/cache   │     │ actions/cache   │     │ (self-contained)│
+└───────────────┘     └─────────────────┘     └─────────────────┘     └─────────────────┘
 ```
 
 ## Key Design: Cache-Based Separation
@@ -103,6 +103,19 @@ Builds, tests, and publishes Node.js SDK.
 3. `publish` - Publishes to npm (on release)
 4. `upload-to-release` - Uploads tarballs to GitHub Release
 
+### `build-java.yml`
+
+Builds Java SDK fat jar with bundled native binaries.
+
+**Triggers:**
+- Releases
+- Manual dispatch
+
+**Jobs:**
+1. `build-native-bundles` - Builds native bundles for `darwin-aarch64`, `linux-x86_64`, `linux-aarch64`
+2. `build-fat-jar` - Aggregates bundles and builds `boxlite-java-highlevel-allplatforms-<version>.jar`
+3. `upload-to-release` - Uploads fat jar to GitHub Release
+
 ### `lint.yml`
 
 Runs code quality checks.
@@ -117,12 +130,13 @@ Runs code quality checks.
 
 ## Trigger Behavior
 
-| Change | build-runtime | build-wheels | build-node |
-|--------|---------------|--------------|------------|
-| `boxlite/**` | ✅ Runs | ❌ Skips | ❌ Skips |
-| `sdks/python/**` | ❌ Skips | ❌ Skips | ❌ Skips |
-| `sdks/node/**` | ❌ Skips | ❌ Skips | ❌ Skips |
-| Release published | ❌ Skips | ✅ Runs | ✅ Runs |
+| Change | build-runtime | build-wheels | build-node | build-java |
+|--------|---------------|--------------|------------|------------|
+| `boxlite/**` | ✅ Runs | ❌ Skips | ❌ Skips | ❌ Skips |
+| `sdks/python/**` | ❌ Skips | ❌ Skips | ❌ Skips | ❌ Skips |
+| `sdks/node/**` | ❌ Skips | ❌ Skips | ❌ Skips | ❌ Skips |
+| `sdks/java/**` | ❌ Skips | ❌ Skips | ❌ Skips | ❌ Skips |
+| Release published | ❌ Skips | ✅ Runs | ✅ Runs | ✅ Runs |
 
 ## Cache Strategy
 
@@ -147,7 +161,7 @@ shared-key: "boxlite"  # Shared across all workflows
 
 ## Platform Matrix
 
-Currently supporting 2 platforms:
+Shared config currently supports 2 platforms:
 
 | Platform | OS Runner | Target |
 |----------|-----------|--------|
@@ -155,6 +169,11 @@ Currently supporting 2 platforms:
 | Linux x64 | `ubuntu-latest` | `linux-x64-gnu` |
 
 Additional platforms (darwin-x64, linux-arm64-gnu) can be added to `config.yml` when needed.
+
+`build-java.yml` uses its own matrix and currently builds:
+- `darwin-aarch64`
+- `linux-x86_64`
+- `linux-aarch64`
 
 ## Time Savings
 
