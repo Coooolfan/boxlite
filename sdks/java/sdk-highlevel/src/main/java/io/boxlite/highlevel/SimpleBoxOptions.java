@@ -4,7 +4,7 @@ import io.boxlite.BoxOptions;
 import io.boxlite.BoxliteRuntime;
 import io.boxlite.ConfigException;
 
-/** Configuration for {@link SimpleBox}. */
+/** {@link SimpleBox} 的配置。 */
 public final class SimpleBoxOptions {
     private final BoxliteRuntime runtime;
     private final BoxOptions boxOptions;
@@ -21,60 +21,60 @@ public final class SimpleBoxOptions {
     }
 
     /**
-     * Creates a builder for {@link SimpleBoxOptions}.
+     * 创建 {@link SimpleBoxOptions} 构建器。
      *
-     * @return builder instance
+     * @return 构建器实例。
      */
     public static Builder builder() {
         return new Builder();
     }
 
     /**
-     * Returns runtime to use.
+     * 返回要使用的运行时。
      *
-     * @return runtime instance, or {@code null} to auto-create one
+     * @return 运行时实例；为 {@code null} 时自动创建。
      */
     public BoxliteRuntime runtime() {
         return runtime;
     }
 
     /**
-     * Returns low-level box options.
+     * 返回底层盒子选项。
      *
-     * @return box options
+     * @return 盒子选项。
      */
     public BoxOptions boxOptions() {
         return boxOptions;
     }
 
     /**
-     * Returns optional box name.
+     * 返回可选盒子名称。
      *
-     * @return box name, or {@code null}
+     * @return 盒子名称，或 {@code null}。
      */
     public String name() {
         return name;
     }
 
     /**
-     * Returns reuse-existing flag.
+     * 返回复用已存在盒子标记。
      *
-     * @return {@code true} to reuse existing box by name
+     * @return 为 {@code true} 时按名称复用已存在盒子。
      */
     public boolean reuseExisting() {
         return reuseExisting;
     }
 
     /**
-     * Returns remove-on-close flag.
+     * 返回关闭时删除标记。
      *
-     * @return {@code true} to remove box when wrapper is closed
+     * @return 为 {@code true} 时在封装对象关闭时删除盒子。
      */
     public boolean removeOnClose() {
         return removeOnClose;
     }
 
-    /** Builder for {@link SimpleBoxOptions}. */
+    /** {@link SimpleBoxOptions} 的构建器。 */
     public static final class Builder {
         private BoxliteRuntime runtime;
         private BoxOptions boxOptions = BoxOptions.defaults();
@@ -86,10 +86,10 @@ public final class SimpleBoxOptions {
         }
 
         /**
-         * Sets runtime instance.
+         * 设置运行时实例。
          *
-         * @param runtime runtime instance
-         * @return this builder
+         * @param runtime 运行时实例。
+         * @return 当前构建器。
          */
         public Builder runtime(BoxliteRuntime runtime) {
             this.runtime = runtime;
@@ -97,10 +97,10 @@ public final class SimpleBoxOptions {
         }
 
         /**
-         * Sets low-level box options.
+         * 设置底层盒子选项。
          *
-         * @param boxOptions box options
-         * @return this builder
+         * @param boxOptions 盒子选项。
+         * @return 当前构建器。
          */
         public Builder boxOptions(BoxOptions boxOptions) {
             if (boxOptions == null) {
@@ -111,10 +111,10 @@ public final class SimpleBoxOptions {
         }
 
         /**
-         * Sets box name.
+         * 设置盒子名称。
          *
-         * @param name box name
-         * @return this builder
+         * @param name 盒子名称。
+         * @return 当前构建器。
          */
         public Builder name(String name) {
             this.name = name;
@@ -122,10 +122,10 @@ public final class SimpleBoxOptions {
         }
 
         /**
-         * Sets reuse behavior.
+         * 设置复用行为。
          *
-         * @param reuseExisting whether to attach existing box by name
-         * @return this builder
+         * @param reuseExisting 是否按名称附加到已存在盒子。
+         * @return 当前构建器。
          */
         public Builder reuseExisting(boolean reuseExisting) {
             this.reuseExisting = reuseExisting;
@@ -133,10 +133,10 @@ public final class SimpleBoxOptions {
         }
 
         /**
-         * Sets remove-on-close behavior.
+         * 设置关闭时删除行为。
          *
-         * @param removeOnClose whether close should remove the box
-         * @return this builder
+         * @param removeOnClose 关闭时是否删除盒子。
+         * @return 当前构建器。
          */
         public Builder removeOnClose(boolean removeOnClose) {
             this.removeOnClose = removeOnClose;
@@ -144,9 +144,9 @@ public final class SimpleBoxOptions {
         }
 
         /**
-         * Builds immutable simple-box options.
+         * 构建不可变 SimpleBox 选项。
          *
-         * @return options instance
+         * @return 选项对象。
          */
         public SimpleBoxOptions build() {
             if (reuseExisting && (name == null || name.isBlank())) {

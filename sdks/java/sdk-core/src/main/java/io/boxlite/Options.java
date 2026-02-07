@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-/** Runtime options for creating {@link BoxliteRuntime} instances. */
+/** 用于创建 {@link BoxliteRuntime} 的运行时选项。 */
 public final class Options {
     private final Path homeDir;
     private final List<String> imageRegistries;
@@ -16,42 +16,42 @@ public final class Options {
     }
 
     /**
-     * Returns default runtime options.
+     * 返回默认运行时选项。
      *
-     * @return options with default values
+     * @return 默认选项对象。
      */
     public static Options defaults() {
         return builder().build();
     }
 
     /**
-     * Creates an options builder.
+     * 创建选项构建器。
      *
-     * @return builder instance
+     * @return 构建器实例。
      */
     public static Builder builder() {
         return new Builder();
     }
 
     /**
-     * Returns runtime home directory.
+     * 返回运行时主目录。
      *
-     * @return custom home directory, or {@code null} to use runtime default
+     * @return 自定义主目录；为 {@code null} 时使用运行时默认目录。
      */
     public Path homeDir() {
         return homeDir;
     }
 
     /**
-     * Returns ordered image registry list used for pulls.
+     * 返回拉取镜像时使用的有序仓库列表。
      *
-     * @return registry endpoints
+     * @return 镜像仓库地址列表。
      */
     public List<String> imageRegistries() {
         return imageRegistries;
     }
 
-    /** Builder for {@link Options}. */
+    /** {@link Options} 的构建器。 */
     public static final class Builder {
         private Path homeDir;
         private List<String> imageRegistries = List.of();
@@ -60,10 +60,10 @@ public final class Options {
         }
 
         /**
-         * Sets runtime home directory.
+         * 设置运行时主目录。
          *
-         * @param homeDir path for runtime data
-         * @return this builder
+         * @param homeDir 运行时数据目录路径。
+         * @return 当前构建器。
          */
         public Builder homeDir(Path homeDir) {
             this.homeDir = homeDir;
@@ -71,10 +71,10 @@ public final class Options {
         }
 
         /**
-         * Replaces image registries list.
+         * 替换镜像仓库列表。
          *
-         * @param imageRegistries registry endpoints
-         * @return this builder
+         * @param imageRegistries 镜像仓库地址列表。
+         * @return 当前构建器。
          */
         public Builder imageRegistries(List<String> imageRegistries) {
             Objects.requireNonNull(imageRegistries, "imageRegistries must not be null");
@@ -83,10 +83,10 @@ public final class Options {
         }
 
         /**
-         * Appends one image registry endpoint.
+         * 追加一个镜像仓库地址。
          *
-         * @param imageRegistry registry endpoint
-         * @return this builder
+         * @param imageRegistry 镜像仓库地址。
+         * @return 当前构建器。
          */
         public Builder addImageRegistry(String imageRegistry) {
             Objects.requireNonNull(imageRegistry, "imageRegistry must not be null");
@@ -98,9 +98,9 @@ public final class Options {
         }
 
         /**
-         * Builds immutable runtime options.
+         * 构建不可变运行时选项。
          *
-         * @return options instance
+         * @return 选项对象。
          */
         public Options build() {
             return new Options(this);

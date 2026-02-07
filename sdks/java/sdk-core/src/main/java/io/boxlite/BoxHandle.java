@@ -7,7 +7,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
-/** Handle to a native BoxLite box instance. */
+/** 原生 BoxLite 盒子句柄。 */
 public final class BoxHandle implements AutoCloseable {
     private static final Cleaner CLEANER = Cleaner.create();
 
@@ -26,27 +26,27 @@ public final class BoxHandle implements AutoCloseable {
     }
 
     /**
-     * Returns immutable box id.
+     * 返回不可变的盒子 ID。
      *
-     * @return box id
+     * @return 盒子 ID。
      */
     public String id() {
         return id;
     }
 
     /**
-     * Returns optional box name.
+     * 返回可选的盒子名称。
      *
-     * @return name when present
+     * @return 名称存在时返回对应值。
      */
     public Optional<String> name() {
         return name;
     }
 
     /**
-     * Fetches current box metadata.
+     * 获取当前盒子元数据。
      *
-     * @return current box info
+     * @return 当前盒子信息。
      */
     public BoxInfo info() {
         runtime.requireNativeHandle();
@@ -55,9 +55,9 @@ public final class BoxHandle implements AutoCloseable {
     }
 
     /**
-     * Starts the box.
+     * 启动盒子。
      *
-     * @return async completion
+     * @return 异步完成信号。
      */
     public CompletableFuture<Void> start() {
         return runtime.async(() -> {
@@ -68,9 +68,9 @@ public final class BoxHandle implements AutoCloseable {
     }
 
     /**
-     * Stops the box.
+     * 停止盒子。
      *
-     * @return async completion
+     * @return 异步完成信号。
      */
     public CompletableFuture<Void> stop() {
         return runtime.async(() -> {
@@ -81,10 +81,10 @@ public final class BoxHandle implements AutoCloseable {
     }
 
     /**
-     * Executes a command inside the box.
+     * 在盒子内执行命令。
      *
-     * @param command execution options
-     * @return async execution handle
+     * @param command 执行选项。
+     * @return 异步返回执行句柄。
      */
     public CompletableFuture<ExecutionHandle> exec(ExecCommand command) {
         return runtime.async(() -> {
@@ -105,12 +105,12 @@ public final class BoxHandle implements AutoCloseable {
     }
 
     /**
-     * Copies host content into the box.
+     * 将宿主机内容复制到盒子内。
      *
-     * @param hostPath source path on host
-     * @param containerDest destination path in box
-     * @param options copy behavior; {@code null} means {@link CopyOptions#defaults()}
-     * @return async completion
+     * @param hostPath 宿主机源路径。
+     * @param containerDest 盒子内目标路径。
+     * @param options 复制选项，传 {@code null} 等价于 {@link CopyOptions#defaults()}。
+     * @return 异步完成信号。
      */
     public CompletableFuture<Void> copyIn(Path hostPath, String containerDest, CopyOptions options) {
         return runtime.async(() -> {
@@ -134,12 +134,12 @@ public final class BoxHandle implements AutoCloseable {
     }
 
     /**
-     * Copies content from box to host.
+     * 将盒子内内容复制到宿主机。
      *
-     * @param containerSrc source path in box
-     * @param hostDest destination path on host
-     * @param options copy behavior; {@code null} means {@link CopyOptions#defaults()}
-     * @return async completion
+     * @param containerSrc 盒子内源路径。
+     * @param hostDest 宿主机目标路径。
+     * @param options 复制选项，传 {@code null} 等价于 {@link CopyOptions#defaults()}。
+     * @return 异步完成信号。
      */
     public CompletableFuture<Void> copyOut(String containerSrc, Path hostDest, CopyOptions options) {
         return runtime.async(() -> {
@@ -162,7 +162,7 @@ public final class BoxHandle implements AutoCloseable {
         });
     }
 
-    /** Releases the native box handle. Safe to call multiple times. */
+    /** 释放原生盒子句柄，可重复调用。 */
     @Override
     public void close() {
         cleanable.clean();

@@ -1,11 +1,11 @@
 package io.boxlite;
 
-/** Error raised when attempting to create a resource that already exists. */
+/** 当尝试创建已存在资源时抛出的异常。 */
 public final class AlreadyExistsException extends BoxliteException {
     /**
-     * Creates an already-exists exception.
+     * 使用已存在错误信息创建异常。
      *
-     * @param message error message
+     * @param message 错误信息。
      */
     public AlreadyExistsException(String message) {
         super(message);

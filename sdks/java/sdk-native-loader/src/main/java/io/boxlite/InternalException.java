@@ -1,21 +1,21 @@
 package io.boxlite;
 
-/** Error raised for internal/native-side failures. */
+/** 内部或原生侧失败时抛出的异常。 */
 public final class InternalException extends BoxliteException {
     /**
-     * Creates an internal exception.
+     * 使用内部错误信息创建异常。
      *
-     * @param message error message
+     * @param message 错误信息。
      */
     public InternalException(String message) {
         super(message);
     }
 
     /**
-     * Creates an internal exception with cause.
+     * 使用内部错误信息和根因创建异常。
      *
-     * @param message error message
-     * @param cause root cause
+     * @param message 错误信息。
+     * @param cause 根因异常。
      */
     public InternalException(String message, Throwable cause) {
         super(message, cause);

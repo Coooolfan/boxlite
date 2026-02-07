@@ -7,23 +7,23 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/** High-level wrapper for executing Python code in a box. */
+/** 在盒子中执行 Python 代码的高层封装。 */
 public final class CodeBox extends SimpleBox {
-    /** Default base image used when no custom options are provided. */
+    /** 未提供自定义选项时使用的默认基础镜像。 */
     public static final String DEFAULT_IMAGE = CodeBoxOptions.DEFAULT_IMAGE;
 
     private final String pythonExecutable;
     private final String pipExecutable;
 
-    /** Creates a CodeBox with default options. */
+    /** 使用默认选项创建 CodeBox。 */
     public CodeBox() {
         this(CodeBoxOptions.builder().build());
     }
 
     /**
-     * Creates a CodeBox with explicit options.
+     * 使用显式选项创建 CodeBox。
      *
-     * @param options code-box options
+     * @param options CodeBox 选项。
      */
     public CodeBox(CodeBoxOptions options) {
         super(requireOptions(options).simpleBoxOptions());
@@ -33,9 +33,9 @@ public final class CodeBox extends SimpleBox {
     }
 
     /**
-     * Starts the box if it is not already started.
+     * 如果盒子尚未启动，则启动盒子。
      *
-     * @return this instance
+     * @return 当前实例。
      */
     @Override
     public synchronized CodeBox start() {
@@ -44,21 +44,21 @@ public final class CodeBox extends SimpleBox {
     }
 
     /**
-     * Executes inline Python code via {@code python -c}.
+     * 通过 {@code python -c} 执行内联 Python 代码。
      *
-     * @param code python source code
-     * @return execution output
+     * @param code Python 源码。
+     * @return 执行输出。
      */
     public ExecOutput run(String code) {
         return run(code, Map.of());
     }
 
     /**
-     * Executes inline Python code with environment variables.
+     * 执行内联 Python 代码，并附加环境变量。
      *
-     * @param code python source code
-     * @param env environment variables
-     * @return execution output
+     * @param code Python 源码。
+     * @param env 环境变量。
+     * @return 执行输出。
      */
     public ExecOutput run(String code, Map<String, String> env) {
         if (code == null || code.isBlank()) {
@@ -68,20 +68,20 @@ public final class CodeBox extends SimpleBox {
     }
 
     /**
-     * Alias of {@link #run(String)} for script-content naming.
+     * {@link #run(String)} 的脚本内容别名。
      *
-     * @param scriptContent python source code
-     * @return execution output
+     * @param scriptContent Python 源码。
+     * @return 执行输出。
      */
     public ExecOutput runScriptContent(String scriptContent) {
         return run(scriptContent);
     }
 
     /**
-     * Installs a single Python package via pip.
+     * 通过 pip 安装单个 Python 包。
      *
-     * @param packageName package name
-     * @return execution output
+     * @param packageName 包名。
+     * @return 执行输出。
      */
     public ExecOutput installPackage(String packageName) {
         if (packageName == null || packageName.isBlank()) {
@@ -91,10 +91,10 @@ public final class CodeBox extends SimpleBox {
     }
 
     /**
-     * Installs multiple Python packages via pip.
+     * 通过 pip 安装多个 Python 包。
      *
-     * @param packageNames package names
-     * @return execution output
+     * @param packageNames 包名列表。
+     * @return 执行输出。
      */
     public ExecOutput installPackages(List<String> packageNames) {
         Objects.requireNonNull(packageNames, "packageNames must not be null");
@@ -114,10 +114,10 @@ public final class CodeBox extends SimpleBox {
     }
 
     /**
-     * Varargs overload of {@link #installPackages(List)}.
+     * {@link #installPackages(List)} 的可变参数重载。
      *
-     * @param packageNames package names
-     * @return execution output
+     * @param packageNames 包名列表。
+     * @return 执行输出。
      */
     public ExecOutput installPackages(String... packageNames) {
         if (packageNames == null) {

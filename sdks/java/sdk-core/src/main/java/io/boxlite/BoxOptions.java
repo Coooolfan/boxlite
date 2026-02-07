@@ -6,9 +6,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/** Box creation options. */
+/** 盒子创建选项。 */
 public final class BoxOptions {
-    /** Default image used by {@link #defaults()}. */
+    /** {@link #defaults()} 使用的默认镜像。 */
     public static final String DEFAULT_IMAGE = "alpine:latest";
 
     private final String image;
@@ -40,132 +40,132 @@ public final class BoxOptions {
     }
 
     /**
-     * Returns default box options.
+     * 返回默认盒子选项。
      *
-     * @return options with default values
+     * @return 默认选项对象。
      */
     public static BoxOptions defaults() {
         return builder().build();
     }
 
     /**
-     * Creates a {@link BoxOptions} builder.
+     * 创建 {@link BoxOptions} 构建器。
      *
-     * @return builder instance
+     * @return 构建器实例。
      */
     public static Builder builder() {
         return new Builder();
     }
 
     /**
-     * Returns OCI image reference.
+     * 返回 OCI 镜像引用。
      *
-     * @return image reference, or {@code null} when {@link #rootfsPath()} is used
+     * @return 镜像引用；使用 {@link #rootfsPath()} 时为 {@code null}。
      */
     public String image() {
         return image;
     }
 
     /**
-     * Returns host rootfs path.
+     * 返回宿主机 rootfs 路径。
      *
-     * @return rootfs path, or {@code null} when {@link #image()} is used
+     * @return rootfs 路径；使用 {@link #image()} 时为 {@code null}。
      */
     public String rootfsPath() {
         return rootfsPath;
     }
 
     /**
-     * Returns CPU limit.
+     * 返回 CPU 限制。
      *
-     * @return CPU count in vCPU units, or {@code null} for runtime default
+     * @return vCPU 数量；为 {@code null} 时使用运行时默认值。
      */
     public Integer cpus() {
         return cpus;
     }
 
     /**
-     * Returns memory limit.
+     * 返回内存限制。
      *
-     * @return memory in MiB, or {@code null} for runtime default
+     * @return 内存（MiB）；为 {@code null} 时使用运行时默认值。
      */
     public Integer memoryMib() {
         return memoryMib;
     }
 
     /**
-     * Returns disk size limit.
+     * 返回磁盘大小限制。
      *
-     * @return disk size in GiB, or {@code null} for runtime default
+     * @return 磁盘大小（GiB）；为 {@code null} 时使用运行时默认值。
      */
     public Long diskSizeGb() {
         return diskSizeGb;
     }
 
     /**
-     * Returns working directory inside the box.
+     * 返回盒子内工作目录。
      *
-     * @return working directory path, or {@code null}
+     * @return 工作目录路径，或 {@code null}。
      */
     public String workingDir() {
         return workingDir;
     }
 
     /**
-     * Returns process environment.
+     * 返回进程环境变量。
      *
-     * @return environment map
+     * @return 环境变量映射。
      */
     public Map<String, String> env() {
         return env;
     }
 
     /**
-     * Returns auto-remove flag.
+     * 返回自动删除标记。
      *
-     * @return {@code true}/{@code false}, or {@code null} for runtime default
+     * @return {@code true}/{@code false}；为 {@code null} 时使用运行时默认值。
      */
     public Boolean autoRemove() {
         return autoRemove;
     }
 
     /**
-     * Returns detach mode flag.
+     * 返回 detach 模式标记。
      *
-     * @return {@code true}/{@code false}, or {@code null} for runtime default
+     * @return {@code true}/{@code false}；为 {@code null} 时使用运行时默认值。
      */
     public Boolean detach() {
         return detach;
     }
 
     /**
-     * Returns entrypoint override.
+     * 返回入口命令覆盖值。
      *
-     * @return entrypoint command tokens
+     * @return 入口命令参数列表。
      */
     public List<String> entrypoint() {
         return entrypoint;
     }
 
     /**
-     * Returns command override.
+     * 返回命令覆盖值。
      *
-     * @return command tokens
+     * @return 命令参数列表。
      */
     public List<String> cmd() {
         return cmd;
     }
 
     /**
-     * Returns user override.
+     * 返回用户覆盖值。
      *
-     * @return user string, or {@code null}
+     * @return 用户字符串，或 {@code null}。
      */
     public String user() {
         return user;
     }
 
-    /** Builder for {@link BoxOptions}. */
+    /** {@link BoxOptions} 的构建器。 */
     public static final class Builder {
         private String image = DEFAULT_IMAGE;
         private String rootfsPath;
@@ -184,10 +184,10 @@ public final class BoxOptions {
         }
 
         /**
-         * Sets image reference and clears {@code rootfsPath} when non-blank.
+         * 设置镜像引用；当值非空白时会清空 {@code rootfsPath}。
          *
-         * @param image OCI image reference
-         * @return this builder
+         * @param image OCI 镜像引用。
+         * @return 当前构建器。
          */
         public Builder image(String image) {
             this.image = image;
@@ -198,10 +198,10 @@ public final class BoxOptions {
         }
 
         /**
-         * Sets rootfs path and clears {@code image} when non-blank.
+         * 设置 rootfs 路径；当值非空白时会清空 {@code image}。
          *
-         * @param rootfsPath host path to prepared rootfs
-         * @return this builder
+         * @param rootfsPath 宿主机上的 rootfs 路径。
+         * @return 当前构建器。
          */
         public Builder rootfsPath(String rootfsPath) {
             this.rootfsPath = rootfsPath;
@@ -212,10 +212,10 @@ public final class BoxOptions {
         }
 
         /**
-         * Sets CPU limit.
+         * 设置 CPU 限制。
          *
-         * @param cpus vCPU count
-         * @return this builder
+         * @param cpus vCPU 数量。
+         * @return 当前构建器。
          */
         public Builder cpus(Integer cpus) {
             this.cpus = cpus;
@@ -223,10 +223,10 @@ public final class BoxOptions {
         }
 
         /**
-         * Sets memory limit.
+         * 设置内存限制。
          *
-         * @param memoryMib memory in MiB
-         * @return this builder
+         * @param memoryMib 内存（MiB）。
+         * @return 当前构建器。
          */
         public Builder memoryMib(Integer memoryMib) {
             this.memoryMib = memoryMib;
@@ -234,10 +234,10 @@ public final class BoxOptions {
         }
 
         /**
-         * Sets disk size limit.
+         * 设置磁盘大小限制。
          *
-         * @param diskSizeGb disk size in GiB
-         * @return this builder
+         * @param diskSizeGb 磁盘大小（GiB）。
+         * @return 当前构建器。
          */
         public Builder diskSizeGb(Long diskSizeGb) {
             this.diskSizeGb = diskSizeGb;
@@ -245,10 +245,10 @@ public final class BoxOptions {
         }
 
         /**
-         * Sets working directory inside box.
+         * 设置盒子内工作目录。
          *
-         * @param workingDir working directory path
-         * @return this builder
+         * @param workingDir 工作目录路径。
+         * @return 当前构建器。
          */
         public Builder workingDir(String workingDir) {
             this.workingDir = workingDir;
@@ -256,10 +256,10 @@ public final class BoxOptions {
         }
 
         /**
-         * Replaces environment map.
+         * 替换环境变量映射。
          *
-         * @param env environment map
-         * @return this builder
+         * @param env 环境变量映射。
+         * @return 当前构建器。
          */
         public Builder env(Map<String, String> env) {
             Objects.requireNonNull(env, "env must not be null");
@@ -268,11 +268,11 @@ public final class BoxOptions {
         }
 
         /**
-         * Sets one environment variable.
+         * 设置单个环境变量。
          *
-         * @param key variable name
-         * @param value variable value
-         * @return this builder
+         * @param key 变量名。
+         * @param value 变量值。
+         * @return 当前构建器。
          */
         public Builder putEnv(String key, String value) {
             Objects.requireNonNull(key, "key must not be null");
@@ -282,10 +282,10 @@ public final class BoxOptions {
         }
 
         /**
-         * Sets auto-remove behavior.
+         * 设置自动删除行为。
          *
-         * @param autoRemove whether box should be removed automatically
-         * @return this builder
+         * @param autoRemove 是否自动删除盒子。
+         * @return 当前构建器。
          */
         public Builder autoRemove(Boolean autoRemove) {
             this.autoRemove = autoRemove;
@@ -293,10 +293,10 @@ public final class BoxOptions {
         }
 
         /**
-         * Sets detach behavior.
+         * 设置 detach 行为。
          *
-         * @param detach whether creation returns detached state
-         * @return this builder
+         * @param detach 创建后是否以分离状态返回。
+         * @return 当前构建器。
          */
         public Builder detach(Boolean detach) {
             this.detach = detach;
@@ -304,10 +304,10 @@ public final class BoxOptions {
         }
 
         /**
-         * Replaces entrypoint command.
+         * 替换入口命令。
          *
-         * @param entrypoint entrypoint tokens
-         * @return this builder
+         * @param entrypoint 入口命令参数列表。
+         * @return 当前构建器。
          */
         public Builder entrypoint(List<String> entrypoint) {
             Objects.requireNonNull(entrypoint, "entrypoint must not be null");
@@ -316,10 +316,10 @@ public final class BoxOptions {
         }
 
         /**
-         * Replaces command arguments.
+         * 替换命令参数。
          *
-         * @param cmd command tokens
-         * @return this builder
+         * @param cmd 命令参数列表。
+         * @return 当前构建器。
          */
         public Builder cmd(List<String> cmd) {
             Objects.requireNonNull(cmd, "cmd must not be null");
@@ -328,10 +328,10 @@ public final class BoxOptions {
         }
 
         /**
-         * Sets user override.
+         * 设置用户覆盖值。
          *
-         * @param user user string
-         * @return this builder
+         * @param user 用户字符串。
+         * @return 当前构建器。
          */
         public Builder user(String user) {
             this.user = user;
@@ -339,9 +339,9 @@ public final class BoxOptions {
         }
 
         /**
-         * Builds immutable box options.
+         * 构建不可变盒子选项。
          *
-         * @return options instance
+         * @return 选项对象。
          */
         public BoxOptions build() {
             validateRootfs();

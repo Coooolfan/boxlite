@@ -3,13 +3,13 @@ package io.boxlite.highlevel;
 import io.boxlite.BoxOptions;
 import io.boxlite.ConfigException;
 
-/** Configuration for {@link CodeBox}. */
+/** {@link CodeBox} 的配置。 */
 public final class CodeBoxOptions {
-    /** Default image for Python workloads. */
+    /** Python 场景使用的默认镜像。 */
     public static final String DEFAULT_IMAGE = "python:slim";
-    /** Default Python executable inside the box. */
+    /** 盒子内默认 Python 可执行文件。 */
     public static final String DEFAULT_PYTHON_EXECUTABLE = "python3";
-    /** Default pip executable inside the box. */
+    /** 盒子内默认 pip 可执行文件。 */
     public static final String DEFAULT_PIP_EXECUTABLE = "pip";
 
     private final SimpleBoxOptions simpleBoxOptions;
@@ -25,36 +25,36 @@ public final class CodeBoxOptions {
     }
 
     /**
-     * Creates a builder for {@link CodeBoxOptions}.
+     * 创建 {@link CodeBoxOptions} 构建器。
      *
-     * @return builder instance
+     * @return 构建器实例。
      */
     public static Builder builder() {
         return new Builder();
     }
 
     /**
-     * Returns base simple-box options.
+     * 返回基础 SimpleBox 选项。
      *
-     * @return simple-box options
+     * @return SimpleBox 选项。
      */
     public SimpleBoxOptions simpleBoxOptions() {
         return simpleBoxOptions;
     }
 
     /**
-     * Returns Python executable name/path.
+     * 返回 Python 可执行文件名或路径。
      *
-     * @return python executable
+     * @return Python 可执行文件。
      */
     public String pythonExecutable() {
         return pythonExecutable;
     }
 
     /**
-     * Returns pip executable name/path.
+     * 返回 pip 可执行文件名或路径。
      *
-     * @return pip executable
+     * @return pip 可执行文件。
      */
     public String pipExecutable() {
         return pipExecutable;
@@ -73,7 +73,7 @@ public final class CodeBoxOptions {
         return value;
     }
 
-    /** Builder for {@link CodeBoxOptions}. */
+    /** {@link CodeBoxOptions} 的构建器。 */
     public static final class Builder {
         private SimpleBoxOptions simpleBoxOptions;
         private String pythonExecutable = DEFAULT_PYTHON_EXECUTABLE;
@@ -83,10 +83,10 @@ public final class CodeBoxOptions {
         }
 
         /**
-         * Sets base simple-box options.
+         * 设置基础 SimpleBox 选项。
          *
-         * @param simpleBoxOptions simple-box options
-         * @return this builder
+         * @param simpleBoxOptions SimpleBox 选项。
+         * @return 当前构建器。
          */
         public Builder simpleBoxOptions(SimpleBoxOptions simpleBoxOptions) {
             if (simpleBoxOptions == null) {
@@ -97,10 +97,10 @@ public final class CodeBoxOptions {
         }
 
         /**
-         * Sets Python executable name/path.
+         * 设置 Python 可执行文件名或路径。
          *
-         * @param pythonExecutable executable value
-         * @return this builder
+         * @param pythonExecutable 可执行文件值。
+         * @return 当前构建器。
          */
         public Builder pythonExecutable(String pythonExecutable) {
             this.pythonExecutable = pythonExecutable;
@@ -108,10 +108,10 @@ public final class CodeBoxOptions {
         }
 
         /**
-         * Sets pip executable name/path.
+         * 设置 pip 可执行文件名或路径。
          *
-         * @param pipExecutable executable value
-         * @return this builder
+         * @param pipExecutable 可执行文件值。
+         * @return 当前构建器。
          */
         public Builder pipExecutable(String pipExecutable) {
             this.pipExecutable = pipExecutable;
@@ -119,9 +119,9 @@ public final class CodeBoxOptions {
         }
 
         /**
-         * Builds immutable code-box options.
+         * 构建不可变 CodeBox 选项。
          *
-         * @return options instance
+         * @return 选项对象。
          */
         public CodeBoxOptions build() {
             return new CodeBoxOptions(this);

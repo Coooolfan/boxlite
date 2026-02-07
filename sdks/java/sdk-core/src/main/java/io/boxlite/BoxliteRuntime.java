@@ -11,7 +11,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
-/** Runtime handle for creating and managing BoxLite boxes. */
+/** 用于创建和管理 BoxLite 盒子的运行时句柄。 */
 public final class BoxliteRuntime implements AutoCloseable {
     private static final Cleaner CLEANER = Cleaner.create();
     private static final ExecutorService EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
@@ -25,19 +25,19 @@ public final class BoxliteRuntime implements AutoCloseable {
     }
 
     /**
-     * Creates an independent runtime with default options.
+     * 使用默认选项创建独立运行时。
      *
-     * @return a new runtime handle
+     * @return 新的运行时句柄。
      */
     public static BoxliteRuntime create() {
         return create(Options.defaults());
     }
 
     /**
-     * Creates an independent runtime with custom options.
+     * 使用自定义选项创建独立运行时。
      *
-     * @param options runtime configuration; {@code null} means {@link Options#defaults()}
-     * @return a new runtime handle
+     * @param options 运行时配置，传 {@code null} 等价于 {@link Options#defaults()}。
+     * @return 新的运行时句柄。
      */
     public static BoxliteRuntime create(Options options) {
         Options resolvedOptions = options == null ? Options.defaults() : options;
@@ -46,9 +46,9 @@ public final class BoxliteRuntime implements AutoCloseable {
     }
 
     /**
-     * Returns a handle to the process-global default runtime.
+     * 返回进程级默认运行时句柄。
      *
-     * @return default runtime handle
+     * @return 默认运行时句柄。
      */
     public static BoxliteRuntime defaultRuntime() {
         long handle = NativeBindings.runtimeDefault();
@@ -56,11 +56,11 @@ public final class BoxliteRuntime implements AutoCloseable {
     }
 
     /**
-     * Initializes the process-global default runtime.
+     * 初始化进程级默认运行时。
      *
-     * <p>Call this before the first {@link #defaultRuntime()} to override defaults.
+     * <p>如需覆盖默认值，请在首次调用 {@link #defaultRuntime()} 前调用。
      *
-     * @param options runtime configuration; {@code null} means {@link Options#defaults()}
+     * @param options 运行时配置，传 {@code null} 等价于 {@link Options#defaults()}。
      */
     public static void initDefaultRuntime(Options options) {
         Options resolvedOptions = options == null ? Options.defaults() : options;
@@ -68,11 +68,11 @@ public final class BoxliteRuntime implements AutoCloseable {
     }
 
     /**
-     * Creates a box.
+     * 创建盒子。
      *
-     * @param options box options; {@code null} means {@link BoxOptions#defaults()}
-     * @param name optional box name; may be {@code null}
-     * @return async handle for the created box
+     * @param options 盒子选项，传 {@code null} 等价于 {@link BoxOptions#defaults()}。
+     * @param name 盒子名称，可为 {@code null}。
+     * @return 异步返回已创建的盒子句柄。
      */
     public CompletableFuture<BoxHandle> create(BoxOptions options, String name) {
         BoxOptions resolvedOptions = options == null ? BoxOptions.defaults() : options;
@@ -88,21 +88,21 @@ public final class BoxliteRuntime implements AutoCloseable {
     }
 
     /**
-     * Creates a box without an explicit name.
+     * 创建未显式命名的盒子。
      *
-     * @param options box options; {@code null} means {@link BoxOptions#defaults()}
-     * @return async handle for the created box
+     * @param options 盒子选项，传 {@code null} 等价于 {@link BoxOptions#defaults()}。
+     * @return 异步返回已创建的盒子句柄。
      */
     public CompletableFuture<BoxHandle> create(BoxOptions options) {
         return create(options, null);
     }
 
     /**
-     * Looks up a box by name and creates one when absent.
+     * 按名称查找盒子，不存在时创建。
      *
-     * @param options box options used when creation is needed
-     * @param name box name used as lookup key; may be {@code null}
-     * @return async result containing box handle and created flag
+     * @param options 需要创建时使用的盒子选项。
+     * @param name 用于查找的盒子名称，可为 {@code null}。
+     * @return 异步返回盒子句柄及是否新建标记。
      */
     public CompletableFuture<GetOrCreateResult> getOrCreate(BoxOptions options, String name) {
         BoxOptions resolvedOptions = options == null ? BoxOptions.defaults() : options;
@@ -125,20 +125,20 @@ public final class BoxliteRuntime implements AutoCloseable {
     }
 
     /**
-     * Creates or gets an unnamed box.
+     * 获取或创建未命名盒子。
      *
-     * @param options box options used when creation is needed
-     * @return async result containing box handle and created flag
+     * @param options 需要创建时使用的盒子选项。
+     * @return 异步返回盒子句柄及是否新建标记。
      */
     public CompletableFuture<GetOrCreateResult> getOrCreate(BoxOptions options) {
         return getOrCreate(options, null);
     }
 
     /**
-     * Gets a box handle by id or name.
+     * 通过 ID 或名称获取盒子句柄。
      *
-     * @param idOrName box id or box name
-     * @return async optional handle; empty when not found
+     * @param idOrName 盒子 ID 或盒子名称。
+     * @return 异步返回盒子句柄；未找到时为空。
      */
     public CompletableFuture<Optional<BoxHandle>> get(String idOrName) {
         requireIdOrName(idOrName);
@@ -152,10 +152,10 @@ public final class BoxliteRuntime implements AutoCloseable {
     }
 
     /**
-     * Gets box metadata by id or name.
+     * 通过 ID 或名称获取盒子元数据。
      *
-     * @param idOrName box id or box name
-     * @return async optional metadata; empty when not found
+     * @param idOrName 盒子 ID 或盒子名称。
+     * @return 异步返回盒子元数据；未找到时为空。
      */
     public CompletableFuture<Optional<BoxInfo>> getInfo(String idOrName) {
         requireIdOrName(idOrName);
@@ -169,9 +169,9 @@ public final class BoxliteRuntime implements AutoCloseable {
     }
 
     /**
-     * Lists metadata for all known boxes.
+     * 列出所有已知盒子的元数据。
      *
-     * @return async list of boxes
+     * @return 异步返回盒子元数据列表。
      */
     public CompletableFuture<List<BoxInfo>> listInfo() {
         return async(() -> {
@@ -181,11 +181,11 @@ public final class BoxliteRuntime implements AutoCloseable {
     }
 
     /**
-     * Removes a box by id or name.
+     * 通过 ID 或名称删除盒子。
      *
-     * @param idOrName box id or box name
-     * @param force force removal for running box
-     * @return async completion
+     * @param idOrName 盒子 ID 或盒子名称。
+     * @param force 是否强制删除运行中的盒子。
+     * @return 异步完成信号。
      */
     public CompletableFuture<Void> remove(String idOrName, boolean force) {
         requireIdOrName(idOrName);
@@ -196,19 +196,19 @@ public final class BoxliteRuntime implements AutoCloseable {
     }
 
     /**
-     * Removes a box by id or name without forcing.
+     * 通过 ID 或名称删除盒子（不强制）。
      *
-     * @param idOrName box id or box name
-     * @return async completion
+     * @param idOrName 盒子 ID 或盒子名称。
+     * @return 异步完成信号。
      */
     public CompletableFuture<Void> remove(String idOrName) {
         return remove(idOrName, false);
     }
 
     /**
-     * Reads runtime metrics.
+     * 读取运行时指标。
      *
-     * @return async metrics snapshot
+     * @return 异步返回指标快照。
      */
     public CompletableFuture<RuntimeMetrics> metrics() {
         return async(() -> {
@@ -218,10 +218,10 @@ public final class BoxliteRuntime implements AutoCloseable {
     }
 
     /**
-     * Shuts down the runtime.
+     * 关闭运行时。
      *
-     * @param timeoutSeconds optional graceful timeout in seconds; {@code null} uses default
-     * @return async completion
+     * @param timeoutSeconds 可选优雅关闭超时（秒），传 {@code null} 使用默认值。
+     * @return 异步完成信号。
      */
     public CompletableFuture<Void> shutdown(Integer timeoutSeconds) {
         return async(() -> {
@@ -230,7 +230,7 @@ public final class BoxliteRuntime implements AutoCloseable {
         });
     }
 
-    /** Releases the native runtime handle. Safe to call multiple times. */
+    /** 释放原生运行时句柄，可重复调用。 */
     @Override
     public void close() {
         cleanable.clean();

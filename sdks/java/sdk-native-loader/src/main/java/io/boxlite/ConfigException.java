@@ -1,11 +1,11 @@
 package io.boxlite;
 
-/** Error raised for invalid SDK configuration or argument values. */
+/** 当 SDK 配置或参数非法时抛出的异常。 */
 public final class ConfigException extends BoxliteException {
     /**
-     * Creates a configuration exception.
+     * 使用配置错误信息创建异常。
      *
-     * @param message error message
+     * @param message 错误信息。
      */
     public ConfigException(String message) {
         super(message);

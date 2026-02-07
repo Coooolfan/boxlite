@@ -3,7 +3,7 @@ package io.boxlite;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/** Snapshot of runtime-wide metrics counters. */
+/** 运行时全局指标快照。 */
 public final class RuntimeMetrics {
     private final long boxesCreatedTotal;
     private final long boxesFailedTotal;
@@ -13,14 +13,14 @@ public final class RuntimeMetrics {
     private final long totalExecErrors;
 
     /**
-     * Deserializable runtime metrics model.
+     * 可反序列化的运行时指标模型。
      *
-     * @param boxesCreatedTotal total created boxes
-     * @param boxesFailedTotal total failed box operations
-     * @param boxesStoppedTotal total stopped boxes
-     * @param numRunningBoxes current running boxes
-     * @param totalCommandsExecuted total executed commands
-     * @param totalExecErrors total command execution errors
+     * @param boxesCreatedTotal 累计创建盒子数。
+     * @param boxesFailedTotal 累计失败盒子操作数。
+     * @param boxesStoppedTotal 累计停止盒子数。
+     * @param numRunningBoxes 当前运行中盒子数。
+     * @param totalCommandsExecuted 累计执行命令数。
+     * @param totalExecErrors 累计命令执行错误数。
      */
     @JsonCreator
     public RuntimeMetrics(
@@ -40,54 +40,54 @@ public final class RuntimeMetrics {
     }
 
     /**
-     * Returns total created boxes since runtime start.
+     * 返回运行时启动以来累计创建盒子数。
      *
-     * @return created-box counter
+     * @return 创建计数器。
      */
     public long boxesCreatedTotal() {
         return boxesCreatedTotal;
     }
 
     /**
-     * Returns total failed box operations.
+     * 返回累计失败盒子操作数。
      *
-     * @return failure counter
+     * @return 失败计数器。
      */
     public long boxesFailedTotal() {
         return boxesFailedTotal;
     }
 
     /**
-     * Returns total stopped boxes.
+     * 返回累计停止盒子数。
      *
-     * @return stopped-box counter
+     * @return 停止计数器。
      */
     public long boxesStoppedTotal() {
         return boxesStoppedTotal;
     }
 
     /**
-     * Returns current number of running boxes.
+     * 返回当前运行中盒子数。
      *
-     * @return running-box count
+     * @return 运行中盒子数量。
      */
     public long numRunningBoxes() {
         return numRunningBoxes;
     }
 
     /**
-     * Returns total executed commands.
+     * 返回累计执行命令数。
      *
-     * @return command counter
+     * @return 命令计数器。
      */
     public long totalCommandsExecuted() {
         return totalCommandsExecuted;
     }
 
     /**
-     * Returns total execution errors.
+     * 返回累计执行错误数。
      *
-     * @return execution-error counter
+     * @return 执行错误计数器。
      */
     public long totalExecErrors() {
         return totalExecErrors;

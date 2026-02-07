@@ -4,18 +4,18 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Objects;
 
-/** Runtime state metadata for a box. */
+/** 盒子的运行状态元数据。 */
 public final class BoxStateInfo {
     private final String status;
     private final boolean running;
     private final Integer pid;
 
     /**
-     * Deserializable box state model.
+     * 可反序列化的盒子状态模型。
      *
-     * @param status status text
-     * @param running whether box is currently running
-     * @param pid optional process id
+     * @param status 状态文本。
+     * @param running 盒子当前是否运行中。
+     * @param pid 可选进程 ID。
      */
     @JsonCreator
     public BoxStateInfo(
@@ -29,27 +29,27 @@ public final class BoxStateInfo {
     }
 
     /**
-     * Returns status text.
+     * 返回状态文本。
      *
-     * @return state label
+     * @return 状态标签。
      */
     public String status() {
         return status;
     }
 
     /**
-     * Returns whether box is running.
+     * 返回盒子是否运行中。
      *
-     * @return running flag
+     * @return 运行标记。
      */
     public boolean running() {
         return running;
     }
 
     /**
-     * Returns box process id.
+     * 返回盒子进程 ID。
      *
-     * @return pid when available, otherwise {@code null}
+     * @return 可用时返回 PID，否则返回 {@code null}。
      */
     public Integer pid() {
         return pid;

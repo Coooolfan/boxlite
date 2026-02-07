@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/** Command options for {@link BoxHandle#exec(ExecCommand)}. */
+/** {@link BoxHandle#exec(ExecCommand)} 的命令选项。 */
 public final class ExecCommand {
     private final String command;
     private final List<String> args;
@@ -25,70 +25,70 @@ public final class ExecCommand {
     }
 
     /**
-     * Creates an execution command builder.
+     * 创建执行命令构建器。
      *
-     * @param command executable name or path
-     * @return builder instance
+     * @param command 可执行文件名或路径。
+     * @return 构建器实例。
      */
     public static Builder builder(String command) {
         return new Builder(command);
     }
 
     /**
-     * Returns command executable.
+     * 返回命令可执行项。
      *
-     * @return command name or path
+     * @return 命令名或路径。
      */
     public String command() {
         return command;
     }
 
     /**
-     * Returns positional arguments.
+     * 返回位置参数列表。
      *
-     * @return arguments list
+     * @return 参数列表。
      */
     public List<String> args() {
         return args;
     }
 
     /**
-     * Returns environment variables.
+     * 返回环境变量。
      *
-     * @return environment map
+     * @return 环境变量映射。
      */
     public Map<String, String> env() {
         return env;
     }
 
     /**
-     * Returns optional timeout.
+     * 返回可选超时时间。
      *
-     * @return timeout in milliseconds, or {@code null}
+     * @return 超时时间（毫秒），或 {@code null}。
      */
     public Long timeoutMillis() {
         return timeoutMillis;
     }
 
     /**
-     * Returns optional working directory.
+     * 返回可选工作目录。
      *
-     * @return working directory path, or {@code null}
+     * @return 工作目录路径，或 {@code null}。
      */
     public String workingDir() {
         return workingDir;
     }
 
     /**
-     * Returns tty flag.
+     * 返回 TTY 标记。
      *
-     * @return {@code true} when tty should be allocated
+     * @return 为 {@code true} 时分配 TTY。
      */
     public boolean tty() {
         return tty;
     }
 
-    /** Builder for {@link ExecCommand}. */
+    /** {@link ExecCommand} 的构建器。 */
     public static final class Builder {
         private final String command;
         private List<String> args = List.of();
@@ -105,10 +105,10 @@ public final class ExecCommand {
         }
 
         /**
-         * Replaces argument list.
+         * 替换参数列表。
          *
-         * @param args command arguments
-         * @return this builder
+         * @param args 命令参数。
+         * @return 当前构建器。
          */
         public Builder args(List<String> args) {
             Objects.requireNonNull(args, "args must not be null");
@@ -117,10 +117,10 @@ public final class ExecCommand {
         }
 
         /**
-         * Appends one command argument.
+         * 追加一个命令参数。
          *
-         * @param arg argument value
-         * @return this builder
+         * @param arg 参数值。
+         * @return 当前构建器。
          */
         public Builder addArg(String arg) {
             Objects.requireNonNull(arg, "arg must not be null");
@@ -132,10 +132,10 @@ public final class ExecCommand {
         }
 
         /**
-         * Replaces environment map.
+         * 替换环境变量映射。
          *
-         * @param env environment variables
-         * @return this builder
+         * @param env 环境变量。
+         * @return 当前构建器。
          */
         public Builder env(Map<String, String> env) {
             Objects.requireNonNull(env, "env must not be null");
@@ -144,11 +144,11 @@ public final class ExecCommand {
         }
 
         /**
-         * Adds one environment variable.
+         * 添加一个环境变量。
          *
-         * @param key variable name
-         * @param value variable value
-         * @return this builder
+         * @param key 变量名。
+         * @param value 变量值。
+         * @return 当前构建器。
          */
         public Builder putEnv(String key, String value) {
             Objects.requireNonNull(key, "key must not be null");
@@ -158,10 +158,10 @@ public final class ExecCommand {
         }
 
         /**
-         * Sets timeout.
+         * 设置超时时间。
          *
-         * @param timeoutMillis timeout in milliseconds; must be {@code > 0} when provided
-         * @return this builder
+         * @param timeoutMillis 超时时间（毫秒）；提供时必须 {@code > 0}。
+         * @return 当前构建器。
          */
         public Builder timeoutMillis(Long timeoutMillis) {
             if (timeoutMillis != null && timeoutMillis <= 0) {
@@ -172,10 +172,10 @@ public final class ExecCommand {
         }
 
         /**
-         * Sets working directory.
+         * 设置工作目录。
          *
-         * @param workingDir working directory path
-         * @return this builder
+         * @param workingDir 工作目录路径。
+         * @return 当前构建器。
          */
         public Builder workingDir(String workingDir) {
             this.workingDir = workingDir;
@@ -183,10 +183,10 @@ public final class ExecCommand {
         }
 
         /**
-         * Enables/disables tty allocation.
+         * 开启或关闭 TTY 分配。
          *
-         * @param tty tty flag
-         * @return this builder
+         * @param tty TTY 标记。
+         * @return 当前构建器。
          */
         public Builder tty(boolean tty) {
             this.tty = tty;
@@ -194,9 +194,9 @@ public final class ExecCommand {
         }
 
         /**
-         * Builds immutable execution command.
+         * 构建不可变执行命令。
          *
-         * @return command instance
+         * @return 命令对象。
          */
         public ExecCommand build() {
             return new ExecCommand(this);

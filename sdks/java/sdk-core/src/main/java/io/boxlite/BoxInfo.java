@@ -6,7 +6,7 @@ import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.Objects;
 
-/** Public metadata describing a box. */
+/** 盒子的公开元数据。 */
 public final class BoxInfo {
     private final String id;
     private final String name;
@@ -17,15 +17,15 @@ public final class BoxInfo {
     private final int memoryMib;
 
     /**
-     * Deserializable box metadata model.
+     * 可反序列化的盒子元数据模型。
      *
-     * @param id box id
-     * @param name optional box name
-     * @param state runtime state snapshot
-     * @param createdAt RFC-3339 creation timestamp
-     * @param image image used by the box
-     * @param cpus configured CPU count
-     * @param memoryMib configured memory in MiB
+     * @param id 盒子 ID。
+     * @param name 可选盒子名称。
+     * @param state 运行状态快照。
+     * @param createdAt RFC-3339 创建时间戳。
+     * @param image 盒子使用的镜像。
+     * @param cpus 配置的 CPU 数量。
+     * @param memoryMib 配置的内存（MiB）。
      */
     @JsonCreator
     public BoxInfo(
@@ -47,63 +47,63 @@ public final class BoxInfo {
     }
 
     /**
-     * Returns box id.
+     * 返回盒子 ID。
      *
-     * @return box id
+     * @return 盒子 ID。
      */
     public String id() {
         return id;
     }
 
     /**
-     * Returns box name.
+     * 返回盒子名称。
      *
-     * @return box name, or {@code null}
+     * @return 盒子名称，或 {@code null}。
      */
     public String name() {
         return name;
     }
 
     /**
-     * Returns box state.
+     * 返回盒子状态。
      *
-     * @return state snapshot
+     * @return 状态快照。
      */
     public BoxStateInfo state() {
         return state;
     }
 
     /**
-     * Returns creation time.
+     * 返回创建时间。
      *
-     * @return creation timestamp
+     * @return 创建时间戳。
      */
     public Instant createdAt() {
         return createdAt;
     }
 
     /**
-     * Returns image reference.
+     * 返回镜像引用。
      *
-     * @return OCI image reference
+     * @return OCI 镜像引用。
      */
     public String image() {
         return image;
     }
 
     /**
-     * Returns configured CPU count.
+     * 返回配置的 CPU 数量。
      *
-     * @return CPU count
+     * @return CPU 数量。
      */
     public int cpus() {
         return cpus;
     }
 
     /**
-     * Returns configured memory in MiB.
+     * 返回配置的内存（MiB）。
      *
-     * @return memory in MiB
+     * @return 内存（MiB）。
      */
     public int memoryMib() {
         return memoryMib;

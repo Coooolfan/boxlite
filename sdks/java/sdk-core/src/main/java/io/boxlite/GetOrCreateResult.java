@@ -2,16 +2,16 @@ package io.boxlite;
 
 import java.util.Objects;
 
-/** Result returned by {@link BoxliteRuntime#getOrCreate}. */
+/** {@link BoxliteRuntime#getOrCreate} 的返回结果。 */
 public final class GetOrCreateResult {
     private final BoxHandle box;
     private final boolean created;
 
     /**
-     * Creates a get-or-create result.
+     * 创建 get-or-create 结果对象。
      *
-     * @param box returned box handle
-     * @param created whether the box was newly created
+     * @param box 返回的盒子句柄。
+     * @param created 盒子是否为新创建。
      */
     public GetOrCreateResult(BoxHandle box, boolean created) {
         this.box = Objects.requireNonNull(box, "box must not be null");
@@ -19,18 +19,18 @@ public final class GetOrCreateResult {
     }
 
     /**
-     * Returns box handle.
+     * 返回盒子句柄。
      *
-     * @return box handle
+     * @return 盒子句柄。
      */
     public BoxHandle box() {
         return box;
     }
 
     /**
-     * Returns creation status.
+     * 返回创建状态。
      *
-     * @return {@code true} when runtime created a new box
+     * @return 运行时新建盒子时为 {@code true}。
      */
     public boolean created() {
         return created;

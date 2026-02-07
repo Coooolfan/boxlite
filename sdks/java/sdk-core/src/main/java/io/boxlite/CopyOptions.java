@@ -1,6 +1,6 @@
 package io.boxlite;
 
-/** Copy behavior options for {@link BoxHandle#copyIn} and {@link BoxHandle#copyOut}. */
+/** {@link BoxHandle#copyIn} 与 {@link BoxHandle#copyOut} 的复制行为选项。 */
 public final class CopyOptions {
     private final boolean recursive;
     private final boolean overwrite;
@@ -15,60 +15,60 @@ public final class CopyOptions {
     }
 
     /**
-     * Returns default copy options.
+     * 返回默认复制选项。
      *
-     * @return options with default values
+     * @return 默认选项对象。
      */
     public static CopyOptions defaults() {
         return builder().build();
     }
 
     /**
-     * Creates a copy options builder.
+     * 创建复制选项构建器。
      *
-     * @return builder instance
+     * @return 构建器实例。
      */
     public static Builder builder() {
         return new Builder();
     }
 
     /**
-     * Returns recursive-copy flag.
+     * 返回递归复制标记。
      *
-     * @return {@code true} to copy directories recursively
+     * @return 为 {@code true} 时递归复制目录。
      */
     public boolean recursive() {
         return recursive;
     }
 
     /**
-     * Returns overwrite flag.
+     * 返回覆盖标记。
      *
-     * @return {@code true} to overwrite existing destination files
+     * @return 为 {@code true} 时覆盖目标已存在文件。
      */
     public boolean overwrite() {
         return overwrite;
     }
 
     /**
-     * Returns symlink-follow flag.
+     * 返回符号链接跟随标记。
      *
-     * @return {@code true} to follow symlinks
+     * @return 为 {@code true} 时跟随符号链接。
      */
     public boolean followSymlinks() {
         return followSymlinks;
     }
 
     /**
-     * Returns include-parent flag.
+     * 返回包含父目录标记。
      *
-     * @return {@code true} to preserve parent directory structure
+     * @return 为 {@code true} 时保留父目录结构。
      */
     public boolean includeParent() {
         return includeParent;
     }
 
-    /** Builder for {@link CopyOptions}. */
+    /** {@link CopyOptions} 的构建器。 */
     public static final class Builder {
         private boolean recursive = true;
         private boolean overwrite = true;
@@ -79,10 +79,10 @@ public final class CopyOptions {
         }
 
         /**
-         * Sets recursive copy behavior.
+         * 设置是否递归复制。
          *
-         * @param recursive recursive flag
-         * @return this builder
+         * @param recursive 递归标记。
+         * @return 当前构建器。
          */
         public Builder recursive(boolean recursive) {
             this.recursive = recursive;
@@ -90,10 +90,10 @@ public final class CopyOptions {
         }
 
         /**
-         * Sets overwrite behavior.
+         * 设置是否覆盖目标文件。
          *
-         * @param overwrite overwrite flag
-         * @return this builder
+         * @param overwrite 覆盖标记。
+         * @return 当前构建器。
          */
         public Builder overwrite(boolean overwrite) {
             this.overwrite = overwrite;
@@ -101,10 +101,10 @@ public final class CopyOptions {
         }
 
         /**
-         * Sets symlink behavior.
+         * 设置是否跟随符号链接。
          *
-         * @param followSymlinks symlink-follow flag
-         * @return this builder
+         * @param followSymlinks 符号链接跟随标记。
+         * @return 当前构建器。
          */
         public Builder followSymlinks(boolean followSymlinks) {
             this.followSymlinks = followSymlinks;
@@ -112,10 +112,10 @@ public final class CopyOptions {
         }
 
         /**
-         * Sets include-parent behavior.
+         * 设置是否包含父目录结构。
          *
-         * @param includeParent include-parent flag
-         * @return this builder
+         * @param includeParent 包含父目录标记。
+         * @return 当前构建器。
          */
         public Builder includeParent(boolean includeParent) {
             this.includeParent = includeParent;
@@ -123,9 +123,9 @@ public final class CopyOptions {
         }
 
         /**
-         * Builds immutable copy options.
+         * 构建不可变复制选项。
          *
-         * @return options instance
+         * @return 选项对象。
          */
         public CopyOptions build() {
             return new CopyOptions(this);

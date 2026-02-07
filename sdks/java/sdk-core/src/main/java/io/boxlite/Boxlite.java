@@ -2,54 +2,54 @@ package io.boxlite;
 
 import io.boxlite.loader.NativeBindings;
 
-/** Entry points for Java SDK runtime access. */
+/** Java SDK 运行时入口。 */
 public final class Boxlite {
     private Boxlite() {
     }
 
     /**
-     * Returns the native SDK version string.
+     * 返回原生 SDK 版本号。
      *
-     * @return version string
+     * @return 版本号字符串。
      */
     public static String version() {
         return NativeBindings.version();
     }
 
     /**
-     * Creates a new runtime handle using default options.
+     * 使用默认选项创建新的运行时句柄。
      *
-     * @return runtime handle
+     * @return 运行时句柄。
      */
     public static BoxliteRuntime newRuntime() {
         return BoxliteRuntime.create(Options.defaults());
     }
 
     /**
-     * Creates a new runtime handle with custom options.
+     * 使用自定义选项创建新的运行时句柄。
      *
-     * @param options runtime options
-     * @return runtime handle
+     * @param options 运行时选项。
+     * @return 运行时句柄。
      */
     public static BoxliteRuntime newRuntime(Options options) {
         return BoxliteRuntime.create(options);
     }
 
     /**
-     * Returns a handle to the process-global default runtime.
+     * 返回进程级默认运行时句柄。
      *
-     * @return default runtime handle
+     * @return 默认运行时句柄。
      */
     public static BoxliteRuntime defaultRuntime() {
         return BoxliteRuntime.defaultRuntime();
     }
 
     /**
-     * Initializes the process-global default runtime.
+     * 初始化进程级默认运行时。
      *
-     * <p>Call this before the first {@link #defaultRuntime()}.
+     * <p>请在首次调用 {@link #defaultRuntime()} 前执行。
      *
-     * @param options default runtime options
+     * @param options 默认运行时选项。
      */
     public static void initDefaultRuntime(Options options) {
         BoxliteRuntime.initDefaultRuntime(options);

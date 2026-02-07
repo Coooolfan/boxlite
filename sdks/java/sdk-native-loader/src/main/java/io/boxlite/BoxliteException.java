@@ -1,21 +1,21 @@
 package io.boxlite;
 
-/** Base exception type for Java SDK errors. */
+/** Java SDK 错误的基础异常类型。 */
 public class BoxliteException extends RuntimeException {
     /**
-     * Creates a BoxLite exception with message.
+     * 使用错误信息创建异常。
      *
-     * @param message error message
+     * @param message 错误信息。
      */
     public BoxliteException(String message) {
         super(message);
     }
 
     /**
-     * Creates a BoxLite exception with message and cause.
+     * 使用错误信息和根因创建异常。
      *
-     * @param message error message
-     * @param cause root cause
+     * @param message 错误信息。
+     * @param cause 根因异常。
      */
     public BoxliteException(String message, Throwable cause) {
         super(message, cause);

@@ -6,7 +6,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
-/** Handle to a command execution inside a BoxLite box. */
+/** 盒子内命令执行句柄。 */
 public final class ExecutionHandle implements AutoCloseable {
     private static final Cleaner CLEANER = Cleaner.create();
 
@@ -23,19 +23,19 @@ public final class ExecutionHandle implements AutoCloseable {
     }
 
     /**
-     * Returns execution id.
+     * 返回执行 ID。
      *
-     * @return execution id
+     * @return 执行 ID。
      */
     public String id() {
         return id;
     }
 
     /**
-     * Writes bytes to process stdin.
+     * 向进程标准输入写入字节。
      *
-     * @param data bytes to write
-     * @return async completion
+     * @param data 待写入字节。
+     * @return 异步完成信号。
      */
     public CompletableFuture<Void> stdinWrite(byte[] data) {
         return runtime.async(() -> {
@@ -49,9 +49,9 @@ public final class ExecutionHandle implements AutoCloseable {
     }
 
     /**
-     * Closes process stdin.
+     * 关闭进程标准输入。
      *
-     * @return async completion
+     * @return 异步完成信号。
      */
     public CompletableFuture<Void> stdinClose() {
         return runtime.async(() -> {
@@ -62,9 +62,9 @@ public final class ExecutionHandle implements AutoCloseable {
     }
 
     /**
-     * Reads the next line from stdout.
+     * 读取标准输出的下一行。
      *
-     * @return async optional line; empty on stream end
+     * @return 异步返回下一行；流结束时为空。
      */
     public CompletableFuture<Optional<String>> stdoutNextLine() {
         return runtime.async(() -> {
@@ -75,9 +75,9 @@ public final class ExecutionHandle implements AutoCloseable {
     }
 
     /**
-     * Reads the next line from stderr.
+     * 读取标准错误的下一行。
      *
-     * @return async optional line; empty on stream end
+     * @return 异步返回下一行；流结束时为空。
      */
     public CompletableFuture<Optional<String>> stderrNextLine() {
         return runtime.async(() -> {
@@ -88,9 +88,9 @@ public final class ExecutionHandle implements AutoCloseable {
     }
 
     /**
-     * Waits for process termination.
+     * 等待进程结束。
      *
-     * @return async execution result
+     * @return 异步返回执行结果。
      */
     public CompletableFuture<ExecResult> waitFor() {
         return runtime.async(() -> {
@@ -101,9 +101,9 @@ public final class ExecutionHandle implements AutoCloseable {
     }
 
     /**
-     * Kills the running process.
+     * 终止正在运行的进程。
      *
-     * @return async completion
+     * @return 异步完成信号。
      */
     public CompletableFuture<Void> kill() {
         return runtime.async(() -> {
@@ -114,11 +114,11 @@ public final class ExecutionHandle implements AutoCloseable {
     }
 
     /**
-     * Resizes TTY when command is running in tty mode.
+     * 在 TTY 模式下调整终端大小。
      *
-     * @param rows terminal rows, must be {@code > 0}
-     * @param cols terminal columns, must be {@code > 0}
-     * @return async completion
+     * @param rows 终端行数，必须 {@code > 0}。
+     * @param cols 终端列数，必须 {@code > 0}。
+     * @return 异步完成信号。
      */
     public CompletableFuture<Void> resizeTty(int rows, int cols) {
         return runtime.async(() -> {
@@ -131,7 +131,7 @@ public final class ExecutionHandle implements AutoCloseable {
         });
     }
 
-    /** Releases the native execution handle. Safe to call multiple times. */
+    /** 释放原生执行句柄，可重复调用。 */
     @Override
     public void close() {
         cleanable.clean();
