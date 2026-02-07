@@ -114,7 +114,8 @@ jobs:
     name: Publish to PyPI
     needs: [ build_wheels, test_wheels ]
     runs-on: ubuntu-latest
-    if: github.event_name == 'release' && github.event.action == 'published'
+    # Disabled for fork: only upload artifacts to GitHub Release, do not publish official package names.
+    if: false
     permissions:
       id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
 

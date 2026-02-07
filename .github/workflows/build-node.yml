@@ -220,7 +220,8 @@ jobs:
   publish:
     name: Publish to npm
     needs: [ config, build, test ]
-    if: github.event_name == 'release' && github.event.action == 'published'
+    # Disabled for fork: only upload artifacts to GitHub Release, do not publish official package names.
+    if: false
     runs-on: ubuntu-latest
     permissions:
       id-token: write   # Required for npm OIDC Trusted Publishing
