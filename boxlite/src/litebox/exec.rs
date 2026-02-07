@@ -123,13 +123,12 @@ impl BoxCommand {
 #[derive(Clone)]
 pub struct Execution {
     id: ExecutionId,
-    inner: std::sync::Arc<tokio::sync::Mutex<ExecutionInner>>,
+    control: std::sync::Arc<tokio::sync::Mutex<ExecutionControl>>,
+    completion: std::sync::Arc<tokio::sync::Mutex<ExecutionCompletion>>,
 }
 
-pub(crate) struct ExecutionInner {
+pub(crate) struct ExecutionControl {
     interface: ExecutionInterface,
-    result_rx: mpsc::UnboundedReceiver<ExecResult>,
-    cached_result: Option<ExecResult>,
 
     /// Standard input stream (write-only).
     stdin: Option<ExecStdin>,
@@ -139,6 +138,11 @@ pub(crate) struct ExecutionInner {
 
     /// Standard error stream (read-only).
     stderr: Option<ExecStderr>,
+}
+
+pub(crate) struct ExecutionCompletion {
+    result_rx: mpsc::UnboundedReceiver<ExecResult>,
+    cached_result: Option<ExecResult>,
 }
 
 /// Unique identifier for an execution.
@@ -154,18 +158,21 @@ impl Execution {
         stdout: Option<ExecStdout>,
         stderr: Option<ExecStderr>,
     ) -> Self {
-        let inner = ExecutionInner {
+        let control = ExecutionControl {
             interface,
-            result_rx,
-            cached_result: None,
             stdin,
             stdout,
             stderr,
         };
+        let completion = ExecutionCompletion {
+            result_rx,
+            cached_result: None,
+        };
 
         Self {
             id: execution_id,
-            inner: std::sync::Arc::new(tokio::sync::Mutex::new(inner)),
+            control: std::sync::Arc::new(tokio::sync::Mutex::new(control)),
+            completion: std::sync::Arc::new(tokio::sync::Mutex::new(completion)),
         }
     }
 
@@ -177,24 +184,24 @@ impl Execution {
     /// Take the stdin stream (can only be called once).
     pub fn stdin(&mut self) -> Option<ExecStdin> {
         futures::executor::block_on(async {
-            let mut inner = self.inner.lock().await;
-            inner.stdin.take()
+            let mut control = self.control.lock().await;
+            control.stdin.take()
         })
     }
 
     /// Take the stdout stream (can only be called once).
     pub fn stdout(&mut self) -> Option<ExecStdout> {
         futures::executor::block_on(async {
-            let mut inner = self.inner.lock().await;
-            inner.stdout.take()
+            let mut control = self.control.lock().await;
+            control.stdout.take()
         })
     }
 
     /// Take the stderr stream (can only be called once).
     pub fn stderr(&mut self) -> Option<ExecStderr> {
         futures::executor::block_on(async {
-            let mut inner = self.inner.lock().await;
-            inner.stderr.take()
+            let mut control = self.control.lock().await;
+            control.stderr.take()
         })
     }
 
@@ -203,24 +210,24 @@ impl Execution {
     /// Returns the exit status once the execution finishes. If the result is
     /// already cached, returns immediately. Otherwise, waits for result from channel.
     pub async fn wait(&mut self) -> BoxliteResult<ExecResult> {
-        let mut inner = self.inner.lock().await;
+        let mut completion = self.completion.lock().await;
 
         // Check if result is already cached
-        if let Some(result) = &inner.cached_result {
+        if let Some(result) = &completion.cached_result {
             return Ok(result.clone());
         }
 
         // Try to receive from result channel (non-blocking)
-        if let Ok(status) = inner.result_rx.try_recv() {
-            inner.cached_result = Some(status.clone());
+        if let Ok(status) = completion.result_rx.try_recv() {
+            completion.cached_result = Some(status.clone());
             return Ok(status);
         }
 
         // Await next result
-        let status = inner.result_rx.recv().await.ok_or_else(|| {
+        let status = completion.result_rx.recv().await.ok_or_else(|| {
             boxlite_shared::BoxliteError::Internal("Result channel closed".into())
         })?;
-        inner.cached_result = Some(status.clone());
+        completion.cached_result = Some(status.clone());
         Ok(status)
     }
 
@@ -231,16 +238,19 @@ impl Execution {
 
     /// Send a signal to the execution.
     pub async fn signal(&self, signal: i32) -> BoxliteResult<()> {
-        let mut inner = self.inner.lock().await;
-        inner.interface.kill(&self.id, signal).await
+        let mut control = self.control.lock().await;
+        control.interface.kill(&self.id, signal).await
     }
 
     /// Resize PTY terminal window.
     ///
     /// Only works for executions started with TTY enabled.
     pub async fn resize_tty(&self, rows: u32, cols: u32) -> BoxliteResult<()> {
-        let mut inner = self.inner.lock().await;
-        inner.interface.resize_tty(&self.id, rows, cols, 0, 0).await
+        let mut control = self.control.lock().await;
+        control
+            .interface
+            .resize_tty(&self.id, rows, cols, 0, 0)
+            .await
     }
 }
 

@@ -1,0 +1,156 @@
+name: Build Java
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Build platform-native bundles used by Java fat jar packaging.
+  # Note: macOS Intel is intentionally excluded because BoxLite does not support it.
+  build-native-bundles:
+    name: Build native bundle (${{ matrix.platform_id }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            platform_id: darwin-aarch64
+            native_library: libboxlite_java_native.dylib
+          - os: ubuntu-latest
+            platform_id: linux-x86_64
+            native_library: libboxlite_java_native.so
+          - os: ubuntu-24.04-arm
+            platform_id: linux-aarch64
+            native_library: libboxlite_java_native.so
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "boxlite"
+          save-if: false
+
+      - name: Build runtime (release)
+        run: make setup runtime
+
+      - name: Build Java JNI native library (release)
+        run: |
+          source "$HOME/.cargo/env" || true
+          cargo build --release -p boxlite-java-native
+
+      - name: Assemble Java native bundle
+        run: |
+          set -euxo pipefail
+
+          PLATFORM_DIR="sdks/java/dist/native/${{ matrix.platform_id }}"
+          mkdir -p "$PLATFORM_DIR/runtime"
+
+          cp "target/release/${{ matrix.native_library }}" "$PLATFORM_DIR/"
+          cp "target/boxlite-runtime/boxlite-shim" "$PLATFORM_DIR/boxlite-shim"
+          cp "target/boxlite-runtime/boxlite-guest" "$PLATFORM_DIR/boxlite-guest"
+
+          cp -a target/boxlite-runtime/. "$PLATFORM_DIR/runtime/"
+          rm -f "$PLATFORM_DIR/runtime/boxlite-shim" "$PLATFORM_DIR/runtime/boxlite-guest"
+
+          ls -la "$PLATFORM_DIR"
+          ls -la "$PLATFORM_DIR/runtime"
+
+      # Preserve symlinks and executable bits in runtime files.
+      - name: Create native bundle tarball
+        run: |
+          tar -cvf "sdks/java/native-bundle-${{ matrix.platform_id }}.tar" \
+            -C "sdks/java/dist/native" \
+            "${{ matrix.platform_id }}"
+
+      - name: Upload native bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-bundle-${{ matrix.platform_id }}
+          path: sdks/java/native-bundle-${{ matrix.platform_id }}.tar
+          if-no-files-found: error
+          retention-days: 7
+
+  # Aggregate all platform bundles and build one fat jar.
+  build-fat-jar:
+    name: Build fat jar
+    needs: build-native-bundles
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Download all native bundle artifacts
+        uses: actions/download-artifact@v5
+        with:
+          path: sdks/java/artifacts
+          pattern: native-bundle-*
+          merge-multiple: true
+
+      - name: Extract native bundles
+        run: |
+          set -euxo pipefail
+          mkdir -p sdks/java/dist/native
+          for tarball in sdks/java/artifacts/*.tar; do
+            echo "Extracting $tarball"
+            tar -xvf "$tarball" -C sdks/java/dist/native
+          done
+
+          find sdks/java/dist/native -maxdepth 2 -type f | sort
+
+      - name: Build Java fat jar (strict platform check)
+        run: |
+          GRADLE_USER_HOME=.gradle-local \
+          ./sdks/java/gradlew -p sdks/java fatJarAllPlatforms \
+            -Pboxlite.nativeBundlesDir=dist/native \
+            -Pboxlite.strictNativePlatforms=true
+
+      - name: Upload fat jar artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: java-fat-jar
+          path: sdks/java/sdk-highlevel/build/libs/boxlite-java-highlevel-allplatforms-*.jar
+          if-no-files-found: error
+          retention-days: 7
+
+  upload-to-release:
+    name: Upload fat jar to GitHub Release
+    needs: build-fat-jar
+    if: github.event_name == 'release' && github.event.action == 'published'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download fat jar artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: java-fat-jar
+          path: sdks/java/packages
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: sdks/java/packages/*.jar
+          fail_on_unmatched_files: true

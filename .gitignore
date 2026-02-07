@@ -66,6 +66,7 @@ yarn-error.log*
 /dist/
 /build/
 **/coverage/
+.gradle-local/
 
 # ============================================================================
 # Credentials & Secrets
@@ -109,6 +110,12 @@ sdks/c/dist/
 # Node SDK
 sdks/node/native/build/
 sdks/node/native/Release/
+
+# Java SDK
+sdks/java/.gradle/
+sdks/java/build/
+sdks/java/**/build/
+sdks/java/*.iml
 
 # FFI build artifacts
 boxlite/deps/libgvproxy-sys/gvproxy-bridge/libgvproxy.*
