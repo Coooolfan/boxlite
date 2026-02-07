@@ -23,6 +23,8 @@ dependencies {
 val sdkCoreClassesDir = project(":sdk-core").layout.buildDirectory.dir("classes/java/main")
 val sdkCoreResourcesDir = project(":sdk-core").layout.buildDirectory.dir("resources/main")
 val sdkNativeLoaderClassesDir = project(":sdk-native-loader").layout.buildDirectory.dir("classes/java/main")
+val sdkCoreSourcesDir = project(":sdk-core").layout.projectDirectory.dir("src/main/java")
+val sdkNativeLoaderSourcesDir = project(":sdk-native-loader").layout.projectDirectory.dir("src/main/java")
 val externalRuntimeArtifacts = configurations.runtimeClasspath.get().incoming.artifactView {
     componentFilter { componentId -> componentId is ModuleComponentIdentifier }
 }.files
@@ -55,6 +57,24 @@ tasks.register<Jar>("fatJarAllPlatforms") {
     from(project(":sdk-native-loader").layout.buildDirectory.dir("generated/native-bundles")) {
         include("native/**")
     }
+}
+
+tasks.register<Jar>("fatJarAllPlatformsSources") {
+    group = "build"
+    description = "Build a sources jar aligned with fatJarAllPlatforms API classes."
+
+    archiveBaseName.set("boxlite-java-highlevel-allplatforms")
+    archiveClassifier.set("sources")
+    archiveVersion.set(project.version.toString())
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    from(sourceSets.main.get().java)
+    from(sdkCoreSourcesDir)
+    from(sdkNativeLoaderSourcesDir)
+}
+
+tasks.named("fatJarAllPlatforms") {
+    finalizedBy("fatJarAllPlatformsSources")
 }
 
 tasks.withType<Test>().configureEach {

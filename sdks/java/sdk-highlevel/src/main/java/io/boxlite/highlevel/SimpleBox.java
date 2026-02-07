@@ -17,9 +17,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * High-level box wrapper for common command-execution workflows.
+ * 面向常见命令执行场景的高层封装。
  *
- * <p>The class owns box lifecycle and can optionally own runtime lifecycle.
+ * <p>该类负责盒子生命周期，并可按需托管运行时生命周期。
  */
 public class SimpleBox implements AutoCloseable {
     private static final ExecutorService READ_EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
@@ -32,20 +32,30 @@ public class SimpleBox implements AutoCloseable {
     private volatile Boolean created;
     private volatile boolean closed;
 
+    /**
+     * 创建高层盒子封装对象。
+     *
+     * @param options SimpleBox 选项。
+     */
     public SimpleBox(SimpleBoxOptions options) {
         if (options == null) {
             throw new ConfigException("options must not be null");
         }
         this.options = options;
         if (options.runtime() == null) {
-            this.runtime = Boxlite.newRuntime();
-            this.ownsRuntime = true;
+            this.runtime = Boxlite.defaultRuntime();
+            this.ownsRuntime = false;
         } else {
             this.runtime = options.runtime();
             this.ownsRuntime = false;
         }
     }
 
+    /**
+     * 如果盒子尚未启动，则启动盒子。
+     *
+     * @return 当前实例。
+     */
     public synchronized SimpleBox start() {
         ensureOpen();
         if (box != null) {
@@ -64,22 +74,51 @@ public class SimpleBox implements AutoCloseable {
         return this;
     }
 
+    /**
+     * 返回当前盒子 ID。
+     *
+     * @return 盒子 ID。
+     */
     public String id() {
         return requireStarted().id();
     }
 
+    /**
+     * 返回当前盒子是否为新创建。
+     *
+     * @return 在调用 {@link #start()} 前为空；启动后返回创建标记。
+     */
     public Optional<Boolean> created() {
         return Optional.ofNullable(created);
     }
 
+    /**
+     * 返回底层句柄。
+     *
+     * @return 底层 {@link BoxHandle}。
+     */
     public BoxHandle rawBox() {
         return requireStarted();
     }
 
+    /**
+     * 执行不带参数和额外环境变量的命令。
+     *
+     * @param command 命令可执行项。
+     * @return 聚合执行输出。
+     */
     public ExecOutput exec(String command) {
         return exec(command, List.of(), Map.of());
     }
 
+    /**
+     * 执行命令并收集完整 stdout/stderr。
+     *
+     * @param command 命令可执行项。
+     * @param args 命令参数。
+     * @param env 环境变量。
+     * @return 聚合执行输出。
+     */
     public ExecOutput exec(String command, List<String> args, Map<String, String> env) {
         BoxHandle currentBox = requireStarted();
         if (command == null || command.isBlank()) {
@@ -112,6 +151,7 @@ public class SimpleBox implements AutoCloseable {
         }
     }
 
+    /** 关闭封装对象与底层句柄，并按配置可选删除盒子。 */
     @Override
     public synchronized void close() {
         if (closed) {

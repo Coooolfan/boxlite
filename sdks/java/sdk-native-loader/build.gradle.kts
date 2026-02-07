@@ -1,5 +1,6 @@
 import java.io.File
 import java.nio.charset.StandardCharsets
+import java.util.Locale
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
@@ -11,6 +12,7 @@ import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import org.gradle.language.jvm.tasks.ProcessResources
 
 plugins {
     `java-library`
@@ -141,7 +143,7 @@ fun parseBooleanProperty(propertyName: String, configuredValue: String?): Boolea
         return false
     }
 
-    return when (configuredValue.trim().lowercase()) {
+    return when (configuredValue.trim().lowercase(Locale.ROOT)) {
         "true", "1", "yes", "on" -> true
         "false", "0", "no", "off", "" -> false
         else -> throw GradleException(
@@ -257,8 +259,8 @@ fun buildBundleReport(
 }
 
 fun resolvePlatformId(osName: String, archName: String): String {
-    val os = osName.lowercase()
-    val archRaw = archName.lowercase()
+    val os = osName.lowercase(Locale.ROOT)
+    val archRaw = archName.lowercase(Locale.ROOT)
 
     val arch = when (archRaw) {
         "aarch64", "arm64" -> "aarch64"
@@ -274,7 +276,7 @@ fun resolvePlatformId(osName: String, archName: String): String {
 }
 
 fun resolveGuestTarget(archName: String): String {
-    val archRaw = archName.lowercase()
+    val archRaw = archName.lowercase(Locale.ROOT)
     return when (archRaw) {
         "aarch64", "arm64" -> "aarch64-unknown-linux-musl"
         "x86_64", "amd64" -> "x86_64-unknown-linux-musl"
@@ -317,8 +319,17 @@ val configuredStrictNativePlatforms = parseBooleanProperty(
     propertyName = "boxlite.strictNativePlatforms",
     configuredValue = providers.gradleProperty("boxlite.strictNativePlatforms").orNull,
 )
+val configuredSyncNativeFromSource = parseBooleanProperty(
+    propertyName = "boxlite.syncNativeFromSource",
+    configuredValue = providers.gradleProperty("boxlite.syncNativeFromSource").orNull ?: "true",
+)
 val nativeBundleOutputDir = layout.buildDirectory.dir("generated/native-bundles")
 val nativeBundleReportOutputFile = layout.buildDirectory.file("reports/native-bundles-report.txt")
+val selectedNativeResourcesDir = if (configuredSyncNativeFromSource) {
+    layout.buildDirectory.dir("generated/native")
+} else {
+    nativeBundleOutputDir
+}
 
 val cargoBuildNativeDebug = tasks.register<Exec>("cargoBuildNativeDebug") {
     workingDir = repoRoot
@@ -419,14 +430,16 @@ val syncNativeResourcesFromBundles = tasks.register("syncNativeResourcesFromBund
     }
 }
 
-sourceSets {
-    named("main") {
-        resources.srcDir(layout.buildDirectory.dir("generated/native"))
+tasks.named<ProcessResources>("processResources") {
+    from(selectedNativeResourcesDir) {
+        include("native/**")
     }
-}
 
-tasks.named("processResources") {
-    dependsOn(syncNativeResources)
+    if (configuredSyncNativeFromSource) {
+        dependsOn(syncNativeResources)
+    } else {
+        dependsOn(syncNativeResourcesFromBundles)
+    }
 }
 
 dependencies {

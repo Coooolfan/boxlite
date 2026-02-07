@@ -7,17 +7,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/** High-level wrapper for executing Python code in a box. */
+/** 在盒子中执行 Python 代码的高层封装。 */
 public final class CodeBox extends SimpleBox {
+    /** 未提供自定义选项时使用的默认基础镜像。 */
     public static final String DEFAULT_IMAGE = CodeBoxOptions.DEFAULT_IMAGE;
 
     private final String pythonExecutable;
     private final String pipExecutable;
 
+    /** 使用默认选项创建 CodeBox。 */
     public CodeBox() {
         this(CodeBoxOptions.builder().build());
     }
 
+    /**
+     * 使用显式选项创建 CodeBox。
+     *
+     * @param options CodeBox 选项。
+     */
     public CodeBox(CodeBoxOptions options) {
         super(requireOptions(options).simpleBoxOptions());
         CodeBoxOptions resolved = requireOptions(options);
@@ -25,18 +32,34 @@ public final class CodeBox extends SimpleBox {
         this.pipExecutable = resolved.pipExecutable();
     }
 
+    /**
+     * 如果盒子尚未启动，则启动盒子。
+     *
+     * @return 当前实例。
+     */
     @Override
     public synchronized CodeBox start() {
         super.start();
         return this;
     }
 
-    /** Execute inline Python code via {@code python -c}. */
+    /**
+     * 通过 {@code python -c} 执行内联 Python 代码。
+     *
+     * @param code Python 源码。
+     * @return 执行输出。
+     */
     public ExecOutput run(String code) {
         return run(code, Map.of());
     }
 
-    /** Execute inline Python code with additional environment variables. */
+    /**
+     * 执行内联 Python 代码，并附加环境变量。
+     *
+     * @param code Python 源码。
+     * @param env 环境变量。
+     * @return 执行输出。
+     */
     public ExecOutput run(String code, Map<String, String> env) {
         if (code == null || code.isBlank()) {
             throw new ConfigException("code must not be null or blank");
@@ -44,12 +67,22 @@ public final class CodeBox extends SimpleBox {
         return exec(pythonExecutable, List.of("-c", code), env);
     }
 
-    /** Alias for executing script content directly. */
+    /**
+     * {@link #run(String)} 的脚本内容别名。
+     *
+     * @param scriptContent Python 源码。
+     * @return 执行输出。
+     */
     public ExecOutput runScriptContent(String scriptContent) {
         return run(scriptContent);
     }
 
-    /** Install a single Python package via pip. */
+    /**
+     * 通过 pip 安装单个 Python 包。
+     *
+     * @param packageName 包名。
+     * @return 执行输出。
+     */
     public ExecOutput installPackage(String packageName) {
         if (packageName == null || packageName.isBlank()) {
             throw new ConfigException("packageName must not be null or blank");
@@ -57,7 +90,12 @@ public final class CodeBox extends SimpleBox {
         return exec(pipExecutable, List.of("install", packageName), Map.of());
     }
 
-    /** Install multiple Python packages via pip. */
+    /**
+     * 通过 pip 安装多个 Python 包。
+     *
+     * @param packageNames 包名列表。
+     * @return 执行输出。
+     */
     public ExecOutput installPackages(List<String> packageNames) {
         Objects.requireNonNull(packageNames, "packageNames must not be null");
         if (packageNames.isEmpty()) {
@@ -75,6 +113,12 @@ public final class CodeBox extends SimpleBox {
         return exec(pipExecutable, args, Map.of());
     }
 
+    /**
+     * {@link #installPackages(List)} 的可变参数重载。
+     *
+     * @param packageNames 包名列表。
+     * @return 执行输出。
+     */
     public ExecOutput installPackages(String... packageNames) {
         if (packageNames == null) {
             throw new ConfigException("packageNames must not be null");

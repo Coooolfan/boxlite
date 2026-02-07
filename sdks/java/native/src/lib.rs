@@ -576,6 +576,24 @@ fn to_jlong_array(env: &mut JNIEnv<'_>, values: &[jlong]) -> jlongArray {
     array.into_raw()
 }
 
+fn get_default_runtime_clone() -> BoxliteResult<BoxliteRuntime> {
+    if BoxliteRuntime::try_default_runtime().is_none() {
+        if let Err(err) = BoxliteRuntime::init_default_runtime(BoxliteOptions::default()) {
+            if BoxliteRuntime::try_default_runtime().is_none() {
+                return Err(err);
+            }
+        }
+    }
+
+    if BoxliteRuntime::try_default_runtime().is_none() {
+        return Err(BoxliteError::Internal(
+            "Default runtime is not initialized".into(),
+        ));
+    }
+
+    Ok(BoxliteRuntime::default_runtime().clone())
+}
+
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_io_boxlite_loader_NativeBindings_nativeVersion(
     mut env: JNIEnv<'_>,
@@ -611,7 +629,12 @@ pub extern "system" fn Java_io_boxlite_loader_NativeBindings_nativeRuntimeDefaul
     mut env: JNIEnv<'_>,
     _class: JClass<'_>,
 ) -> jlong {
-    match insert_runtime_handle(BoxliteRuntime::default_runtime().clone()) {
+    let result: BoxliteResult<i64> = (|| {
+        let runtime = get_default_runtime_clone()?;
+        insert_runtime_handle(runtime)
+    })();
+
+    match result {
         Ok(handle) => handle as jlong,
         Err(err) => {
             throw_boxlite_error(&mut env, err);
