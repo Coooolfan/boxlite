@@ -120,6 +120,7 @@ GRADLE_USER_HOME=.gradle-local ./sdks/java/gradlew -p sdks/java fatJarAllPlatfor
 Optional properties:
 - `-Pboxlite.nativeBundlesDir=<path>` (default: `dist/native`, relative to `sdks/java/`)
 - `-Pboxlite.nativePlatforms=darwin-aarch64,linux-x86_64,linux-aarch64`
+- `-Pboxlite.syncNativeFromSource=true|false` (default: `true`; set `false` to make `processResources` use bundle sync instead of local Cargo builds)
 
 ## Native Override
 

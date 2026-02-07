@@ -17,12 +17,13 @@ class CodeBoxVmTest {
     static void verifyVmPreflight() {
         String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
         String osArch = System.getProperty("os.arch", "");
+        String normalizedArch = osArch.toLowerCase(Locale.ROOT);
 
         if (!osName.contains("mac")) {
             return;
         }
 
-        if (!"aarch64".equals(osArch)) {
+        if (!"aarch64".equals(normalizedArch) && !"arm64".equals(normalizedArch)) {
             fail("CodeBox VM tests require macOS arm64. Detected os.arch=" + osArch);
         }
 
