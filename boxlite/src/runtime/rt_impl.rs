@@ -670,7 +670,8 @@ impl RuntimeImpl {
         if let Some((config, state)) = self.box_manager.box_by_id(id)? {
             // Box exists in database - handle as before
             let mut state = state;
-            if state.status.is_active() {
+            let was_active = state.status.is_active();
+            if was_active {
                 if force {
                     // Force mode: kill the process directly
                     if let Some(pid) = state.pid {
@@ -688,6 +689,13 @@ impl RuntimeImpl {
                         id, state.status
                     )));
                 }
+            }
+
+            // Force-removing an active box is semantically a stop operation.
+            if was_active {
+                self.runtime_metrics
+                    .boxes_stopped
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             }
 
             // Remove from BoxManager (database-first)

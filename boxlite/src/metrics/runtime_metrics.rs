@@ -61,7 +61,8 @@ impl RuntimeMetrics {
 
     /// Total number of boxes that have been stopped.
     ///
-    /// Incremented when `LiteBox::stop()` completes successfully.
+    /// Incremented when `LiteBox::stop()` completes successfully, or when an
+    /// active box is force-removed.
     /// Never decreases (monotonic counter).
     pub fn boxes_stopped_total(&self) -> u64 {
         self.storage.boxes_stopped.load(Ordering::Relaxed)

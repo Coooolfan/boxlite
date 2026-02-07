@@ -6,9 +6,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import io.boxlite.BoxOptions;
+import io.boxlite.BoxliteRuntime;
 import io.boxlite.ConfigException;
+import io.boxlite.Options;
+import io.boxlite.RuntimeMetrics;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -60,6 +69,59 @@ class CodeBoxVmTest {
             assertFalse(output.success(), "expected non-zero exit");
             assertEquals(3, output.exitCode());
             assertTrue(output.stderr().contains("boom"));
+        }
+    }
+
+    @Test
+    void codeBoxCloseForceRemoveKeepsRunningMetricsAccurate() throws Exception {
+        int rounds = 3;
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        Path runtimeHome = Path.of("/tmp", "bljvm-" + suffix);
+        Files.createDirectories(runtimeHome);
+
+        try {
+            Options options = Options.builder()
+                .homeDir(runtimeHome)
+                .build();
+
+            try (BoxliteRuntime runtime = BoxliteRuntime.create(options)) {
+                for (int i = 0; i < rounds; i++) {
+                    String name = "java-codebox-metrics-" + UUID.randomUUID();
+                    SimpleBoxOptions simpleOptions = SimpleBoxOptions.builder()
+                        .runtime(runtime)
+                        .name(name)
+                        .boxOptions(BoxOptions.builder().autoRemove(false).build())
+                        .removeOnClose(true)
+                        .build();
+                    CodeBoxOptions codeOptions = CodeBoxOptions.builder()
+                        .simpleBoxOptions(simpleOptions)
+                        .build();
+
+                    try (CodeBox box = new CodeBox(codeOptions).start()) {
+                        assertFalse(box.id().isBlank(), "started box should have a non-blank id");
+                        ExecOutput output = box.exec("sh", List.of("-lc", "echo ok"), Map.of());
+                        assertTrue(output.success(), "expected shell execution success");
+                    }
+                }
+
+                RuntimeMetrics metrics = runtime.metrics().join();
+                assertEquals(rounds, metrics.boxesCreatedTotal());
+                assertEquals(rounds, metrics.boxesStoppedTotal());
+                assertEquals(0, metrics.numRunningBoxes());
+                assertEquals(0, runtime.listInfo().join().size());
+            }
+        } finally {
+            if (Files.exists(runtimeHome)) {
+                try (var walk = Files.walk(runtimeHome)) {
+                    walk.sorted(Comparator.reverseOrder()).forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (Exception ignored) {
+                            // Best-effort cleanup to keep this integration test non-flaky.
+                        }
+                    });
+                }
+            }
         }
     }
 

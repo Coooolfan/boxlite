@@ -366,6 +366,7 @@ async fn remove_active_without_force_fails() {
         .await
         .unwrap();
     let box_id = handle.id().clone();
+    handle.start().await.unwrap();
 
     // Box is in Starting state (active)
     let info = ctx
@@ -408,6 +409,7 @@ async fn remove_active_with_force_stops_and_removes() {
         .await
         .unwrap();
     let box_id = handle.id().clone();
+    handle.start().await.unwrap();
 
     // Box is in Starting state (active)
     let info = ctx
@@ -418,11 +420,20 @@ async fn remove_active_with_force_stops_and_removes() {
         .unwrap();
     assert!(info.status.is_active());
 
+    let before = ctx.runtime.metrics().await;
+    assert_eq!(before.boxes_created_total(), 1);
+    assert_eq!(before.num_running_boxes(), 1);
+
     // Force remove should succeed
     ctx.runtime.remove(box_id.as_str(), true).await.unwrap();
 
     // Box should no longer exist
     assert!(!ctx.runtime.exists(box_id.as_str()).await.unwrap());
+
+    let after = ctx.runtime.metrics().await;
+    assert_eq!(after.boxes_created_total(), 1);
+    assert_eq!(after.boxes_stopped_total(), 1);
+    assert_eq!(after.num_running_boxes(), 0);
 }
 
 #[tokio::test]
