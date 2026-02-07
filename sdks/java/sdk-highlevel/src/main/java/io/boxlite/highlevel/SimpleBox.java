@@ -43,8 +43,8 @@ public class SimpleBox implements AutoCloseable {
         }
         this.options = options;
         if (options.runtime() == null) {
-            this.runtime = Boxlite.newRuntime();
-            this.ownsRuntime = true;
+            this.runtime = Boxlite.defaultRuntime();
+            this.ownsRuntime = false;
         } else {
             this.runtime = options.runtime();
             this.ownsRuntime = false;

@@ -38,6 +38,9 @@ public final class Boxlite {
     /**
      * 返回进程级默认运行时句柄。
      *
+     * <p>该方法可高频重复调用，每次返回同一个共享运行时实例。
+     * 对返回实例调用 {@link BoxliteRuntime#close()} 不会关闭默认运行时。
+     *
      * @return 默认运行时句柄。
      */
     public static BoxliteRuntime defaultRuntime() {

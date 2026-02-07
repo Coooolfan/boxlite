@@ -32,7 +32,7 @@ public final class SimpleBoxOptions {
     /**
      * 返回要使用的运行时。
      *
-     * @return 运行时实例；为 {@code null} 时自动创建。
+     * @return 运行时实例；为 {@code null} 时使用进程级默认运行时。
      */
     public BoxliteRuntime runtime() {
         return runtime;
@@ -88,7 +88,7 @@ public final class SimpleBoxOptions {
         /**
          * 设置运行时实例。
          *
-         * @param runtime 运行时实例。
+         * @param runtime 运行时实例；传 {@code null} 时使用进程级默认运行时。
          * @return 当前构建器。
          */
         public Builder runtime(BoxliteRuntime runtime) {

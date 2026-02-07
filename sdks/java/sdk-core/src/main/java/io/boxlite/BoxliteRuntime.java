@@ -15,12 +15,14 @@ import java.util.function.Supplier;
 public final class BoxliteRuntime implements AutoCloseable {
     private static final Cleaner CLEANER = Cleaner.create();
     private static final ExecutorService EXECUTOR = Executors.newVirtualThreadPerTaskExecutor();
+    private static final Object DEFAULT_RUNTIME_LOCK = new Object();
+    private static volatile BoxliteRuntime DEFAULT_RUNTIME_INSTANCE;
 
     private final RuntimeState state;
     private final Cleaner.Cleanable cleanable;
 
-    private BoxliteRuntime(long nativeHandle) {
-        this.state = new RuntimeState(nativeHandle);
+    private BoxliteRuntime(long nativeHandle, boolean ownsNativeHandle) {
+        this.state = new RuntimeState(nativeHandle, ownsNativeHandle);
         this.cleanable = CLEANER.register(this, state);
     }
 
@@ -42,17 +44,31 @@ public final class BoxliteRuntime implements AutoCloseable {
     public static BoxliteRuntime create(Options options) {
         Options resolvedOptions = options == null ? Options.defaults() : options;
         long handle = NativeBindings.runtimeNew(JsonSupport.write(toRuntimePayload(resolvedOptions)));
-        return fromNativeHandle(handle, "runtimeNew");
+        return fromNativeHandle(handle, "runtimeNew", true);
     }
 
     /**
-     * 返回进程级默认运行时句柄。
+     * 返回进程级默认运行时句柄（Java 进程内单例）。
+     *
+     * <p>可高频重复调用；每次返回同一个 Java 对象，不会重复创建 JNI 运行时句柄。
      *
      * @return 默认运行时句柄。
      */
     public static BoxliteRuntime defaultRuntime() {
-        long handle = NativeBindings.runtimeDefault();
-        return fromNativeHandle(handle, "runtimeDefault");
+        BoxliteRuntime runtime = DEFAULT_RUNTIME_INSTANCE;
+        if (runtime != null) {
+            return runtime;
+        }
+
+        synchronized (DEFAULT_RUNTIME_LOCK) {
+            runtime = DEFAULT_RUNTIME_INSTANCE;
+            if (runtime == null) {
+                long handle = NativeBindings.runtimeDefault();
+                runtime = fromNativeHandle(handle, "runtimeDefault", false);
+                DEFAULT_RUNTIME_INSTANCE = runtime;
+            }
+        }
+        return runtime;
     }
 
     /**
@@ -230,9 +246,16 @@ public final class BoxliteRuntime implements AutoCloseable {
         });
     }
 
-    /** 释放原生运行时句柄，可重复调用。 */
+    /**
+     * 释放原生运行时句柄，可重复调用。
+     *
+     * <p>对于默认运行时对象，该方法为 no-op，不会关闭共享运行时。
+     */
     @Override
     public void close() {
+        if (!state.ownsNativeHandle()) {
+            return;
+        }
         cleanable.clean();
     }
 
@@ -244,8 +267,8 @@ public final class BoxliteRuntime implements AutoCloseable {
         return CompletableFuture.supplyAsync(supplier, EXECUTOR);
     }
 
-    private static BoxliteRuntime fromNativeHandle(long handle, String operation) {
-        return new BoxliteRuntime(requireValidNativeHandle(handle, operation));
+    private static BoxliteRuntime fromNativeHandle(long handle, String operation, boolean ownsNativeHandle) {
+        return new BoxliteRuntime(requireValidNativeHandle(handle, operation), ownsNativeHandle);
     }
 
     private static long requireValidNativeHandle(long handle, String operation) {
@@ -275,9 +298,11 @@ public final class BoxliteRuntime implements AutoCloseable {
 
     private static final class RuntimeState implements Runnable {
         private final AtomicLong handle;
+        private final boolean ownsNativeHandle;
 
-        private RuntimeState(long handle) {
+        private RuntimeState(long handle, boolean ownsNativeHandle) {
             this.handle = new AtomicLong(handle);
+            this.ownsNativeHandle = ownsNativeHandle;
         }
 
         private long requireNativeHandle() {
@@ -288,8 +313,16 @@ public final class BoxliteRuntime implements AutoCloseable {
             return value;
         }
 
+        private boolean ownsNativeHandle() {
+            return ownsNativeHandle;
+        }
+
         @Override
         public void run() {
+            if (!ownsNativeHandle) {
+                return;
+            }
+
             long value = handle.getAndSet(0L);
             if (value == 0L) {
                 return;
