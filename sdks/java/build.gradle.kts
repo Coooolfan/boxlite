@@ -1,6 +1,6 @@
 allprojects {
     group = "io.boxlite"
-    version = "0.5.10-coooolfan.1"
+    version = "0.5.10-coooolfan.2"
 }
 
 subprojects {

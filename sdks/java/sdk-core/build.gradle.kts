@@ -12,7 +12,10 @@ java {
 
 dependencies {
     api(project(":sdk-native-loader"))
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.18.2")
+    implementation("tools.jackson.core:jackson-databind:3.0.4")
+    constraints {
+        implementation("com.fasterxml.jackson.core:jackson-annotations:2.20")
+    }
     testImplementation("org.junit.jupiter:junit-jupiter:5.12.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.12.0")
 }
