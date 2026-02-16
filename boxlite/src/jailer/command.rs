@@ -52,17 +52,15 @@ impl Jailer {
             use boxlite_shared::errors::BoxliteError;
 
             // Preflight: verify bwrap can create user namespaces before proceeding.
-            // Catches AppArmor restrictions and missing kernel support early.
+            // Uses Chrome-style clone(CLONE_NEWUSER) probe for diagnosis + bwrap
+            // probe for actual capability (handles AppArmor per-binary profiles).
             if self.security.jailer_enabled
                 && bwrap::is_available()
-                && let Err(reason) = bwrap::check_userns_available()
+                && let Err(diagnostic) = bwrap::can_create_user_namespace()
             {
                 return Err(BoxliteError::Config(format!(
-                    "Sandbox preflight failed: bwrap cannot create user namespaces.\n\
-                     {reason}\n\n\
-                     This usually means unprivileged user namespaces are restricted \
-                     on this system.\n\n\
-                     To fix, see: https://boxlite.dev/docs/faq#sandbox-userns\n\n\
+                    "Sandbox preflight failed: bwrap cannot create user namespaces.\n\n\
+                     {diagnostic}\n\n\
                      To skip the sandbox (development only):\n  \
                        SecurityOptions::development()"
                 )));
@@ -266,6 +264,32 @@ impl Jailer {
             if images_dir.exists() {
                 bwrap.ro_bind(&images_dir, &images_dir);
                 tracing::debug!(images_dir = %images_dir.display(), "bwrap: mounted images directory (ro)");
+            }
+
+            // 5. Mount rootfs directory (read-only for VM init rootfs)
+            //    Contains: Alpine bootstrap filesystem (kernel + init)
+            let rootfs_dir = home_dir.join("rootfs");
+            if rootfs_dir.exists() {
+                bwrap.ro_bind(&rootfs_dir, &rootfs_dir);
+                tracing::debug!(rootfs_dir = %rootfs_dir.display(), "bwrap: mounted rootfs directory (ro)");
+            }
+
+            // 6. Mount user-specified volume host paths
+            for vol in &self.volumes {
+                let host_path = std::path::Path::new(&vol.host_path);
+                if host_path.exists() {
+                    if vol.read_only {
+                        bwrap.ro_bind(host_path, host_path);
+                    } else {
+                        bwrap.bind(host_path, host_path);
+                    }
+                    tracing::debug!(
+                        host_path = %host_path.display(),
+                        guest_path = %vol.guest_path,
+                        read_only = vol.read_only,
+                        "bwrap: mounted user volume"
+                    );
+                }
             }
         }
 
