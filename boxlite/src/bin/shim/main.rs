@@ -132,56 +132,8 @@ fn run_shim(args: ShimArgs, mut config: InstanceSpec) -> BoxliteResult<()> {
     );
 
     // =========================================================================
-    // Apply Linux jailer isolation (seccomp)
+    // Network backend (gvproxy) + Seccomp
     // =========================================================================
-    //
-    // On Linux, apply seccomp filtering before any untrusted code runs.
-    // This restricts the syscalls available to this process.
-    //
-    // By this point, the following isolation is already in place (from bwrap):
-    // - Namespaces: mount, user, PID, IPC, UTS
-    // - Filesystem: chroot/pivot_root with minimal mounts
-    // - Environment: cleared (clearenv)
-    // - FDs: closed except stdin/stdout/stderr (pre_exec hook)
-    // - Resource limits: rlimits and cgroup membership (pre_exec hook)
-    //
-    // We add: Seccomp syscall filtering
-    #[cfg(target_os = "linux")]
-    {
-        use boxlite::jailer::platform::linux;
-        use boxlite::runtime::layout::{FilesystemLayout, FsLayoutConfig};
-
-        if config.security.jailer_enabled {
-            tracing::info!(
-                box_id = %config.box_id,
-                seccomp_enabled = config.security.seccomp_enabled,
-                "Applying Linux jailer isolation"
-            );
-
-            let layout = FilesystemLayout::new(config.home_dir.clone(), FsLayoutConfig::default());
-
-            if let Err(e) = linux::apply_isolation(&config.security, &config.box_id, &layout) {
-                // Log error but don't fail - allows debugging with isolation disabled
-                tracing::error!(
-                    box_id = %config.box_id,
-                    error = %e,
-                    "Failed to apply Linux jailer isolation"
-                );
-                // Re-raise the error to fail startup if isolation was required
-                return Err(e);
-            }
-
-            tracing::info!(
-                box_id = %config.box_id,
-                "Linux jailer isolation applied successfully"
-            );
-        } else {
-            tracing::warn!(
-                box_id = %config.box_id,
-                "Jailer disabled - running without process isolation"
-            );
-        }
-    }
 
     // Create network backend (gvproxy) from network_config if present.
     // gvproxy provides virtio-net (eth0) to the guest - required even without port mappings.
@@ -227,6 +179,36 @@ fn run_shim(args: ShimArgs, mut config: InstanceSpec) -> BoxliteResult<()> {
         // and OS cleanup handles resources when process exits.
         let _gvproxy_leaked = Box::leak(Box::new(gvproxy));
         tracing::debug!("Leaked gvproxy instance for VM lifetime");
+    }
+
+    // Apply VMM seccomp filter with TSYNC (covers all threads including gvproxy)
+    #[cfg(target_os = "linux")]
+    {
+        use boxlite::jailer::platform::linux;
+
+        if config.security.jailer_enabled && config.security.seccomp_enabled {
+            tracing::info!(
+                box_id = %config.box_id,
+                "Applying VMM seccomp filter (TSYNC)"
+            );
+
+            linux::apply_vmm_filter(&config.box_id)?;
+
+            tracing::info!(
+                box_id = %config.box_id,
+                "Seccomp isolation complete"
+            );
+        } else if config.security.jailer_enabled {
+            tracing::warn!(
+                box_id = %config.box_id,
+                "Seccomp disabled - running without syscall filtering"
+            );
+        } else {
+            tracing::warn!(
+                box_id = %config.box_id,
+                "Jailer disabled - running without process isolation"
+            );
+        }
     }
 
     // Save detach/parent_pid/transport before config is moved into engine.create()
