@@ -2,6 +2,21 @@
 //!
 //! Centralized location for all storage-related configuration values.
 
+/// Disk filenames used in box directories.
+pub mod filenames {
+    /// Container rootfs COW disk: `~/.boxlite/boxes/{box_id}/disk.qcow2`
+    pub const CONTAINER_DISK: &str = "disk.qcow2";
+
+    /// Guest bootstrap COW disk: `~/.boxlite/boxes/{box_id}/guest-rootfs.qcow2`
+    pub const GUEST_ROOTFS_DISK: &str = "guest-rootfs.qcow2";
+}
+
+/// Directory names within a box home.
+pub mod dirs {
+    /// Snapshots subdirectory: `~/.boxlite/boxes/{box_id}/snapshots/`
+    pub const SNAPSHOTS_DIR: &str = "snapshots";
+}
+
 /// QCOW2 disk image configuration
 pub mod qcow2 {
     /// Default disk size in GB (sparse, grows as needed)

@@ -6,7 +6,7 @@ use pyo3::prelude::*;
 use crate::box_handle::PyBox;
 use crate::info::PyBoxInfo;
 use crate::metrics::PyRuntimeMetrics;
-use crate::options::{PyBoxOptions, PyOptions};
+use crate::options::{PyBoxOptions, PyBoxliteRestOptions, PyOptions};
 use crate::util::map_err;
 
 #[pyclass(name = "Boxlite")]
@@ -30,6 +30,26 @@ impl PyBoxlite {
         let runtime = BoxliteRuntime::default_runtime();
         Ok(Self {
             runtime: Arc::new(runtime.clone()),
+        })
+    }
+
+    /// Create a REST-backed runtime connecting to a remote BoxLite server.
+    ///
+    /// All box operations are delegated to the remote server via HTTP.
+    ///
+    /// Example::
+    ///
+    ///     opts = boxlite.BoxliteRestOptions(url="https://api.example.com")
+    ///     runtime = boxlite.Boxlite.rest(opts)
+    ///
+    ///     # From environment variables
+    ///     opts = boxlite.BoxliteRestOptions.from_env()
+    ///     runtime = boxlite.Boxlite.rest(opts)
+    #[staticmethod]
+    fn rest(options: PyBoxliteRestOptions) -> PyResult<Self> {
+        let runtime = BoxliteRuntime::rest(options.into()).map_err(map_err)?;
+        Ok(Self {
+            runtime: Arc::new(runtime),
         })
     }
 
@@ -81,12 +101,6 @@ impl PyBoxlite {
     }
 
     /// Get a box handle by ID or name (for reattach or restart).
-    ///
-    /// Args:
-    ///     id_or_name: Either a box ID (ULID) or user-defined name
-    ///
-    /// Returns:
-    ///     Box handle if found, None otherwise
     fn get<'py>(&self, py: Python<'py>, id_or_name: String) -> PyResult<Bound<'py, PyAny>> {
         let runtime = Arc::clone(&self.runtime);
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
@@ -109,9 +123,6 @@ impl PyBoxlite {
     }
 
     /// Get an existing box by name, or create a new one if it doesn't exist.
-    ///
-    /// Returns:
-    ///     Tuple of (Box, bool) where bool is True if newly created, False if existing
     #[pyo3(signature = (options, name=None))]
     fn get_or_create<'py>(
         &self,
@@ -135,15 +146,12 @@ impl PyBoxlite {
     fn metrics<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let runtime = Arc::clone(&self.runtime);
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
-            Ok(PyRuntimeMetrics::from(runtime.metrics().await))
+            let metrics = runtime.metrics().await.map_err(map_err)?;
+            Ok(PyRuntimeMetrics::from(metrics))
         })
     }
 
     /// Remove a box by ID or name.
-    ///
-    /// Args:
-    ///     id_or_name: Either a box ID (ULID) or user-defined name
-    ///     force: If True, stop the box first if running (default: False)
     #[pyo3(signature = (id_or_name, force=false))]
     fn remove<'py>(
         &self,
@@ -163,24 +171,37 @@ impl PyBoxlite {
     }
 
     /// Gracefully shutdown all boxes in this runtime.
-    ///
-    /// This method stops all running boxes, waiting up to `timeout` seconds
-    /// for each box to stop gracefully before force-killing it.
-    ///
-    /// After calling this method, the runtime is permanently shut down and
-    /// will return errors for any new operations (like `create()`).
-    ///
-    /// Args:
-    ///     timeout: Seconds to wait before force-killing each box:
-    ///         - None (default) - Use default timeout (10 seconds)
-    ///         - Positive integer - Wait that many seconds
-    ///         - -1 - Wait indefinitely (no timeout)
     #[pyo3(signature = (timeout=None))]
     fn shutdown<'py>(&self, py: Python<'py>, timeout: Option<i32>) -> PyResult<Bound<'py, PyAny>> {
         let runtime = Arc::clone(&self.runtime);
         pyo3_async_runtimes::tokio::future_into_py(py, async move {
             runtime.shutdown(timeout).await.map_err(map_err)?;
             Ok(())
+        })
+    }
+
+    // ========================================================================
+    // IMPORT (kept on runtime - export moved to Box)
+    // ========================================================================
+
+    /// Import a box from a `.boxsnap` or `.boxlite` archive.
+    ///
+    /// Returns a Box handle for the imported box.
+    fn import_box<'py>(
+        &self,
+        py: Python<'py>,
+        archive_path: String,
+        name: String,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let runtime = Arc::clone(&self.runtime);
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
+            let handle = runtime
+                .import(std::path::Path::new(&archive_path), &name)
+                .await
+                .map_err(map_err)?;
+            Ok(PyBox {
+                handle: Arc::new(handle),
+            })
         })
     }
 
