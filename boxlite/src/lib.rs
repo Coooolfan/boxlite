@@ -33,10 +33,14 @@ pub use portal::GuestSession;
 pub use runtime::{BoxliteRuntime, ImageHandle};
 
 pub use boxlite_shared::errors::{BoxliteError, BoxliteResult};
+pub use db::snapshots::SnapshotInfo;
+pub use litebox::SnapshotHandle;
+pub use litebox::snapshot_types::{CloneOptions, ExportOptions, SnapshotOptions};
 pub use litebox::{
     BoxCommand, CopyOptions, ExecResult, ExecStderr, ExecStdin, ExecStdout, Execution, ExecutionId,
 };
 pub use metrics::{BoxMetrics, RuntimeMetrics};
+pub use runtime::ArchiveManifest;
 pub use runtime::advanced_options::{AdvancedBoxOptions, ResourceLimits, SecurityOptions};
 use runtime::layout::FilesystemLayout;
 pub use runtime::options::{BoxOptions, BoxliteOptions, RootfsSpec};

@@ -223,9 +223,11 @@ impl BoxBuilder {
         // Get disks from context (for Running, create disk reference directly)
         let (container_disk, guest_disk) = if status == BoxStatus::Running {
             // Reattach: create disk reference to existing qcow2
+            use crate::disk::DiskFormat;
+            use crate::disk::constants::filenames;
             let disk = crate::disk::Disk::new(
-                ctx.config.box_home.join("root.qcow2"),
-                crate::disk::DiskFormat::Qcow2,
+                ctx.config.box_home.join(filenames::CONTAINER_DISK),
+                DiskFormat::Qcow2,
                 true,
             );
             (disk, None)

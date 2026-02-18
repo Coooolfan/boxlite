@@ -3,18 +3,23 @@
 //! Provides lazy initialization and execution capabilities for isolated boxes.
 
 pub(crate) mod box_impl;
+mod clone;
 pub(crate) mod config;
 pub mod copy;
 mod crash_report;
 mod exec;
+mod export;
 mod init;
 mod manager;
+mod snapshot;
+pub mod snapshot_types;
 mod state;
 
 pub use copy::CopyOptions;
 pub(crate) use crash_report::CrashReport;
 pub use exec::{BoxCommand, ExecResult, ExecStderr, ExecStdin, ExecStdout, Execution, ExecutionId};
 pub(crate) use manager::BoxManager;
+pub use snapshot::SnapshotHandle;
 pub use state::{BoxState, BoxStatus};
 
 pub(crate) use box_impl::SharedBoxImpl;
@@ -98,6 +103,11 @@ impl LiteBox {
         self.inner
             .copy_into(host_src.as_ref(), container_dst.as_ref(), opts)
             .await
+    }
+
+    /// Get a snapshot handle for snapshot operations.
+    pub fn snapshot(&self) -> SnapshotHandle<'_> {
+        SnapshotHandle::new(self)
     }
 
     /// Copy files/directories from container rootfs to host.
